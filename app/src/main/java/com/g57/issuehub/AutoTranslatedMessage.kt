@@ -2,6 +2,8 @@ package com.g57.issuehub
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,12 +83,26 @@ internal fun AutoTranslatedMessage(
     appLanguage: String = Locale.getDefault().language,
     modifier: Modifier = Modifier
 ) {
-    val resolvedLanguage = remember(appLanguage) { resolveAppLanguage(appLanguage) }
+    val configuration = LocalConfiguration.current
+    val deviceLanguage = remember(configuration) {
+        configuration.locales[0]?.language?.lowercase(Locale.ROOT)
+            ?: Locale.getDefault().language.lowercase(Locale.ROOT)
+    }
+    val resolvedLanguage = remember(appLanguage, deviceLanguage) {
+        if (appLanguage == "system") {
+            when (deviceLanguage) {
+                "ar" -> "ar"
+                "pt", "pt-br" -> "pt-BR"
+                else -> "en"
+            }
+        } else resolveAppLanguage(appLanguage)
+    }
     val targetLanguage = remember(resolvedLanguage) { targetTranslateCode(resolvedLanguage) }
     var translated by remember(original, targetLanguage) { mutableStateOf<String?>(null) }
     var translationStatus by remember(original, targetLanguage) { mutableStateOf("pending") }
+    var retryKey by remember(original, targetLanguage) { mutableStateOf(0) }
 
-    LaunchedEffect(original, targetLanguage) {
+    LaunchedEffect(original, targetLanguage, retryKey) {
         translated = null
         if (original.isBlank() || targetLanguage == null) {
             translationStatus = "unavailable"
@@ -121,7 +137,7 @@ internal fun AutoTranslatedMessage(
                     else -> "English"
                 }
                 AppText(
-                    "Translation · $targetLabel",
+                    "AUTO-TRANSLATED TO $targetLabel",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -129,17 +145,24 @@ internal fun AutoTranslatedMessage(
             }
             translationStatus == "translating" -> {
                 AppText(
-                    "Translating… First translation may take a little while while the language model downloads. Please wait.",
+                    "Automatic translation to $resolvedLanguage… The first translation may take a little while while the language model downloads. Please wait; the original message remains visible.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             translationStatus == "unavailable" -> {
-                AppText(
-                    "Translation unavailable · original shown. Check your internet connection and try again.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                androidx.compose.foundation.layout.Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                ) {
+                    AppText(
+                        "Translation unavailable · original shown.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { retryKey++ }) {
+                        AppText("RETRY")
+                    }
+                }
             }
         }
     }
