@@ -200,6 +200,11 @@ fun G57App(vm: G57ViewModel = viewModel()) {
             background = palette.background, surface = palette.surface, primary = palette.primary,
             secondary = palette.secondary, onBackground = palette.text, onSurface = palette.text,
             onPrimary = Color(0xFF080A0F), outline = palette.border
+        ),
+        shapes = Shapes(
+            small = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(18.dp),
+            large = RoundedCornerShape(24.dp)
         )
     ) {
         ModalNavigationDrawer(
@@ -251,7 +256,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                 }
             }
         ) {
-            Box(Modifier.fillMaxSize().background(G57Bg)) {
+            Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(G57Primary.copy(alpha = 0.07f), G57Bg, G57Bg)))) {
                 when (val screen = ui.screen) {
                     ScreenState.Login -> LoginScreen(ui, vm)
                     ScreenState.UserHome -> UserHome(ui, vm) { scope.launch { drawerState.open() } }
@@ -988,27 +993,24 @@ private fun IssueCard(issue: Issue, onClick: (Issue) -> Unit) {
         colors = CardDefaults.elevatedCardColors(containerColor = G57Card),
         shape = RoundedCornerShape(22.dp)
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Box(Modifier.width(5.dp).fillMaxHeight().background(G57Primary))
-            Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(color = G57Primary.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp)) {
-                        AppText("#${issue.issueNumber}", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = G57Primary, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    StatusBadge(issue.status)
-                    Spacer(Modifier.weight(1f))
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = G57Muted)
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(color = G57Primary.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp)) {
+                    AppText("#${issue.issueNumber}", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = G57Primary, fontWeight = FontWeight.Bold)
                 }
-                AppText(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
-                AppText("${issue.game} • ${issue.problemType}", color = G57Muted)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Memory, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(15.dp))
-                    Spacer(Modifier.width(6.dp))
-                    AppText("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
-                }
-                if (issue.userUsername != null) AppText("Reported by ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.width(8.dp))
+                StatusBadge(issue.status)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = G57Muted)
             }
+            AppText(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
+            AppText("${issue.game} • ${issue.problemType}", color = G57Muted)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Memory, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(6.dp))
+                AppText("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+            }
+            if (issue.userUsername != null) AppText("Reported by ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
