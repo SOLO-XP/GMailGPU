@@ -1038,55 +1038,68 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
         }.sortedWith(compareByDescending<Issue> { it.issueNumber })
     }
 
-    Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-            placeholder = { AppText("Search title, game, driver, username, or #issue") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
-            trailingIcon = {
-                if (searchQuery.isNotBlank()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear search")
+    // Search, status filters, and issue cards share one vertical scrolling area.
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        item(key = "issue_search") {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                placeholder = { AppText("Search title, game, driver, username, or #issue") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        }
                     }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp)
+            )
+        }
+        item(key = "issue_filters") {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                groups.forEach { (name, count) ->
+                    FilterChip(
+                        selected = selectedGroup == name,
+                        onClick = { selectedGroup = name },
+                        label = { AppText("$name ($count)") },
+                        leadingIcon = if (selectedGroup == name) {
+                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                        } else null
+                    )
                 }
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp)
-        )
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            groups.forEach { (name, count) ->
-                FilterChip(
-                    selected = selectedGroup == name,
-                    onClick = { selectedGroup = name },
-                    label = { AppText("$name ($count)") },
-                    leadingIcon = if (selectedGroup == name) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                    } else null
-                )
             }
         }
         if (filtered.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AppText(
-                    when {
-                        issues.isEmpty() -> emptyText
-                        searchQuery.isNotBlank() -> "No matching issues. Try another search."
-                        else -> "No issues in ${selectedGroup.lowercase()} yet."
-                    },
-                    color = G57Muted
-                )
+            item(key = "issue_empty_state") {
+                Box(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 28.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppText(
+                        when {
+                            issues.isEmpty() -> emptyText
+                            searchQuery.isNotBlank() -> "No matching issues. Try another search."
+                            else -> "No issues in ${selectedGroup.lowercase()} yet."
+                        },
+                        color = G57Muted
+                    )
+                }
             }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filtered, key = { it.id }) { issue -> IssueCard(issue, onClick) }
+            items(filtered, key = { it.id }) { issue ->
+                Box(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
+                    IssueCard(issue, onClick)
+                }
             }
         }
     }
@@ -1157,8 +1170,32 @@ private fun CreateIssueScreen(ui: UiState, vm: G57ViewModel) {
                 }
             }
             AppText("ENVIRONMENT", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-            OutlinedTextField(ui.gpu, { vm.setField("gpu", it) }, label = { AppText("GPU model (verify auto-detection)") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.soc, { vm.setField("soc", it) }, label = { AppText("SoC / chipset") }, modifier = Modifier.fillMaxWidth())
+            val detectedDevice = remember(context) { DiagnosticCollector.snapshot(context) }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = G57Card,
+                shape = RoundedCornerShape(18.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+            ) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Memory, contentDescription = null, tint = G57Cyan)
+                        Spacer(Modifier.width(8.dp))
+                        AppText("AUTOMATIC DEVICE DETECTION", color = G57Cyan, fontWeight = FontWeight.Bold)
+                    }
+                    Detail("Device", "${detectedDevice.manufacturer} ${detectedDevice.model}")
+                    Detail("Android", detectedDevice.androidVersion)
+                    Detail("Chipset / SoC", detectedDevice.soc)
+                    Detail("GPU renderer", detectedDevice.gpu)
+                    Detail("CPU", detectedDevice.cpuModel)
+                    Detail("RAM", detectedDevice.totalRamMb?.let { "${it} MB" } ?: "Not exposed by Android")
+                    AppText(
+                        "Detected by Android. GPU renderer and chipset details may be limited by the device or graphics driver. Winlator and driver versions below must still be entered manually because Android cannot reliably read them.",
+                        color = G57Muted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
             OutlinedTextField(ui.driver, { vm.setField("driver", it) }, label = { AppText("Driver") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(ui.emulator, { vm.setField("emulator", it) }, label = { AppText("Emulator") }, modifier = Modifier.fillMaxWidth())
             OutlinedTextField(ui.emulatorVersion, { vm.setField("emulatorVersion", it) }, label = { AppText("Emulator version") }, modifier = Modifier.fillMaxWidth())
