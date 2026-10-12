@@ -59,6 +59,7 @@ data class UiState(
     val uploadProgress: String? = null,
     val attachmentPreviewName: String? = null,
     val attachmentPreviewText: String? = null,
+    val attachmentPreviewUrl: String? = null,
     val username: String = "",
     val password: String = "",
     val loginRole: String = "user",
@@ -638,7 +639,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openAttachment(attachment: Attachment) = viewModelScope.launch {
         if (!SupabaseProvider.enabled) return@launch
-        update { copy(loading = true, error = null, attachmentPreviewName = null, attachmentPreviewText = null) }
+        update { copy(loading = true, error = null, attachmentPreviewName = null, attachmentPreviewText = null, attachmentPreviewUrl = null) }
         runCatching {
             val url = repo.signedUrl(attachment.storagePath)
             val lowerName = attachment.filename.lowercase(Locale.ROOT)
@@ -675,6 +676,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                     loading = false,
                     openUrl = if (preview == null) url else null,
                     attachmentPreviewName = if (preview == null) null else attachment.filename,
+                    attachmentPreviewUrl = if (preview == null) null else url,
                     attachmentPreviewText = preview?.let { if (it.length > 12000) it.take(12000) + "\n\n[Preview shortened. Open the file externally for the rest.]" else it },
                     error = null
                 )
@@ -689,7 +691,11 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun closeAttachmentPreview() = update { copy(attachmentPreviewName = null, attachmentPreviewText = null) }
+    fun closeAttachmentPreview() = update { copy(attachmentPreviewName = null, attachmentPreviewText = null, attachmentPreviewUrl = null) }
+
+    fun openAttachmentExternally() = update {
+        copy(openUrl = attachmentPreviewUrl, attachmentPreviewName = null, attachmentPreviewText = null, attachmentPreviewUrl = null)
+    }
     fun clearOpenUrl() = update { copy(openUrl = null) }
 
     fun markNotificationRead(notification: Notification) = viewModelScope.launch {
