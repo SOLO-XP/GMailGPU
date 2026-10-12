@@ -392,6 +392,26 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Text("APP LANGUAGE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            Text("Choose English, Arabic, or Brazilian Portuguese. This preference is saved on this device and controls the automatic chat-translation target.", color = G57Muted)
+            listOf("en" to "English", "ar" to "العربية", "pt-BR" to "Português (Brasil)").forEach { (code, label) ->
+                Card(
+                    onClick = { vm.setAppLanguage(code) },
+                    colors = CardDefaults.cardColors(containerColor = G57Card),
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(
+                        if (ui.appLanguage == code) 2.dp else 1.dp,
+                        if (ui.appLanguage == code) G57Primary else G57Border
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        if (ui.appLanguage == code) Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = G57Primary)
+                    }
+                }
+            }
+            Divider(color = G57Border)
             Text("APP APPEARANCE", color = G57Cyan, fontWeight = FontWeight.Bold)
             Text("Choose a complete app theme. Backgrounds, cards, text, borders, and accent colors change together. Your choice is saved on this device.", color = G57Muted)
             listOf(
@@ -953,7 +973,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                                 color = if (isMine) G57Cyan else G57Primary,
                                 fontWeight = FontWeight.Bold
                             )
-                            AutoTranslatedMessage(message.body)
+                            AutoTranslatedMessage(message.body, ui.appLanguage)
                             message.createdAt?.let {
                                 Text(it.replace("T", " ").take(16), color = G57Muted, style = MaterialTheme.typography.labelSmall)
                             }
