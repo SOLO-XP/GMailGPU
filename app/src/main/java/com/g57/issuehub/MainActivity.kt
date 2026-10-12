@@ -923,7 +923,7 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
     Column(Modifier.fillMaxSize()) {
         BrandHeader("USER MANAGEMENT") { vm.back() }
         AppText(
-            "Registered profiles • view-only access. Developers can inspect profiles but cannot delete users.",
+            "Registered profiles • view-only access. Screenshots and screen recording are blocked on this page to help protect usernames. Other app screens still allow screenshots.",
             color = G57Muted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
