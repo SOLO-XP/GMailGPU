@@ -68,7 +68,7 @@ internal fun AppText(
                 else com.google.mlkit.nl.translate.TranslateLanguage.fromLanguageTag(detected)
             if (source == null || source == target) return@LaunchedEffect
             val translator = ChatTranslationCache.translator(source, target)
-            translator.downloadModelIfNeeded(com.google.mlkit.common.model.DownloadConditions.Builder().build()).await()
+            ChatTranslationCache.ensureModel(source, target)
             val result = translator.translate(text).await()
             UiTextTranslationCache.put(language, text, result)
             translated.value = result
