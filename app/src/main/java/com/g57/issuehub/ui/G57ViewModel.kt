@@ -107,7 +107,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         val snapshot = DiagnosticCollector.snapshot(getApplication())
         _ui.value = _ui.value.copy(
             themeChoice = prefs.getString("theme_choice", "Violet") ?: "Violet",
-            appLanguage = prefs.getString("app_language", when (Locale.getDefault().language) { "ar" -> "ar"; "pt" -> "pt-BR"; else -> "en" }) ?: "en",
+            appLanguage = prefs.getString("app_language", "system") ?: "system",
             includeDeviceDiagnostics = prefs.getBoolean("include_device_diagnostics", true),
             collectAppLogsEnabled = prefs.getBoolean("collect_app_logs", false),
             redactSensitiveLogs = prefs.getBoolean("redact_sensitive_logs", true),
@@ -167,8 +167,8 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     fun setProblemType(v: String) = update { copy(problemType = v) }
 
     fun setAppLanguage(language: String) {
-        val supported = setOf("en", "ar", "pt-BR")
-        val selected = language.takeIf { it in supported } ?: "en"
+        val supported = setOf("system", "en", "ar", "pt-BR")
+        val selected = language.takeIf { it in supported } ?: "system"
         getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
             .edit().putString("app_language", selected).apply()
         update { copy(appLanguage = selected) }
