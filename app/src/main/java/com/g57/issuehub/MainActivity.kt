@@ -315,84 +315,128 @@ private fun BrandHeader(subtitle: String? = null, onMenu: (() -> Unit)? = null, 
 
 @Composable
 private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(G57Bg)) {
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(
+            androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(G57Primary.copy(alpha = 0.24f), G57Bg, G57Cyan.copy(alpha = 0.10f))
+            )
+        )
+    ) {
         val compact = maxHeight < 760.dp
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 18.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Surface(
+                color = G57Primary.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(28.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, G57Primary.copy(alpha = 0.30f))
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 24.dp, vertical = if (compact) 14.dp else 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Image(
+                        painterResource(com.g57.issuehub.R.drawable.g57_uploaded_logo),
+                        "GMailGPU logo",
+                        Modifier.size(if (compact) 76.dp else 104.dp)
+                    )
+                    AppText("GMailGPU", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = G57Primary)
+                    AppText("YOUR MALI GPU SUPPORT HUB", color = G57Cyan, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        listOf("G57", "G52", "G615", "G720").forEach { gpu ->
+                            Surface(
+                                color = G57Card,
+                                shape = RoundedCornerShape(50),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+                            ) {
+                                AppText(gpu, modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = G57Text, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
                 color = G57Card,
-                border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(28.dp),
+                shadowElevation = 8.dp,
+                border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
             ) {
                 Column(
                     Modifier.padding(if (compact) 18.dp else 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        Modifier.fillMaxWidth().height(5.dp).background(
-                            androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(G57Primary, G57Cyan, G57Primary)),
-                            RoundedCornerShape(50)
-                        )
-                    )
-                    Image(painterResource(com.g57.issuehub.R.drawable.g57_uploaded_logo), "GMailGPU logo", Modifier.size(if (compact) 76.dp else 96.dp))
-                    AppText("GMailGPU", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = G57Primary)
-                    AppText("MALI GPU • WINLATOR ISSUE HUB", color = G57Cyan, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-                    AppText("G57 · G52 · G615 · G720", color = G57Muted, style = MaterialTheme.typography.bodyMedium)
-                    Divider(color = G57Border)
-                    AppText("Welcome back", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    AppText("Choose your access type to continue.", color = G57Muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    AppText("Welcome back", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = G57Text)
+                    AppText("Sign in to track GPU issues, share logs, and chat with developers.", color = G57Muted, style = MaterialTheme.typography.bodyMedium)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RoleCard("USER", "Report & track issues", ui.loginRole == "user", { vm.setLoginRole("user") }, Modifier.weight(1f))
-            RoleCard("ADMIN", "Developer panel", ui.loginRole == "admin", { vm.setLoginRole("admin") }, Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(20.dp))
-        OutlinedTextField(
-            ui.username,
-            vm::setUsername,
-            label = { AppText("Username") },
-            supportingText = { AppText(if (ui.loginRole == "user") "Choose a unique username" else "Admin username") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        if (ui.loginRole == "user") {
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = !ui.userCreateAccount,
-                    onClick = { vm.setUserCreateAccount(false) },
-                    label = { AppText("SIGN IN") },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterChip(
-                    selected = ui.userCreateAccount,
-                    onClick = { vm.setUserCreateAccount(true) },
-                    label = { AppText("CREATE ACCOUNT") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            ui.password,
-            vm::setPassword,
-            label = { AppText("Password") },
-            supportingText = { AppText(if (ui.loginRole == "user" && ui.userCreateAccount) "Use at least 8 characters. Keep it safe for reinstalling." else "Your account password") },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(18.dp))
-        Button(onClick = vm::login, enabled = !ui.loading, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            AppText(if (ui.loading) "PLEASE WAIT…" else if (ui.loginRole == "user") { if (ui.userCreateAccount) "CREATE ACCOUNT" else "SIGN IN" } else "SIGN IN")
-        }
-                    ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp)) }
+                        RoleCard("USER", "Report & track issues", ui.loginRole == "user", { vm.setLoginRole("user") }, Modifier.weight(1f))
+                        RoleCard("ADMIN", "Developer panel", ui.loginRole == "admin", { vm.setLoginRole("admin") }, Modifier.weight(1f))
+                    }
+                    OutlinedTextField(
+                        value = ui.username,
+                        onValueChange = vm::setUsername,
+                        label = { AppText("Username") },
+                        supportingText = { AppText(if (ui.loginRole == "user") "Choose a unique username" else "Admin username") },
+                        leadingIcon = { Icon(Icons.Default.PersonOutline, contentDescription = null, tint = G57Primary) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    if (ui.loginRole == "user") {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = !ui.userCreateAccount,
+                                onClick = { vm.setUserCreateAccount(false) },
+                                label = { AppText("SIGN IN") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = ui.userCreateAccount,
+                                onClick = { vm.setUserCreateAccount(true) },
+                                label = { AppText("CREATE ACCOUNT") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = ui.password,
+                        onValueChange = vm::setPassword,
+                        label = { AppText("Password") },
+                        supportingText = { AppText(if (ui.loginRole == "user" && ui.userCreateAccount) "At least 8 characters" else "Your account password") },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = G57Primary) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    Button(
+                        onClick = vm::login,
+                        enabled = !ui.loading,
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(vertical = 14.dp)
+                    ) {
+                        Icon(if (ui.loading) Icons.Default.HourglassTop else Icons.Default.Login, contentDescription = null)
+                        Spacer(Modifier.width(9.dp))
+                        AppText(if (ui.loading) "PLEASE WAIT…" else if (ui.loginRole == "user" && ui.userCreateAccount) "CREATE ACCOUNT" else "SIGN IN", fontWeight = FontWeight.Bold)
+                    }
+                    ui.error?.let { error ->
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            AppText(error, color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(12.dp))
+                        }
+                    }
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            AppText("Private issue tracking • Device-aware chat translation", color = G57Muted, style = MaterialTheme.typography.labelSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
