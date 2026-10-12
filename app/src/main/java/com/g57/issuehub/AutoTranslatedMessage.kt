@@ -19,6 +19,8 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.tasks.await
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Original chat text is shown immediately. Language identification and translators are
@@ -27,6 +29,8 @@ import java.util.Locale
 internal object ChatTranslationCache {
     val identifier: LanguageIdentifier by lazy { LanguageIdentification.getClient() }
     private val translators = ConcurrentHashMap<String, Translator>()
+    private val modelLocks = ConcurrentHashMap<String, Mutex>()
+    private val readyModels = ConcurrentHashMap.newKeySet<String>()
 
     fun translator(source: String, target: String): Translator =
         translators.getOrPut("$source->$target") {
@@ -37,6 +41,18 @@ internal object ChatTranslationCache {
                     .build()
             )
         }
+
+    suspend fun ensureModel(source: String, target: String) {
+        val key = "$source->$target"
+        if (readyModels.contains(key)) return
+        modelLocks.getOrPut(key) { Mutex() }.withLock {
+            if (!readyModels.contains(key)) {
+                translator(source, target)
+                    .downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
+                readyModels.add(key)
+            }
+        }
+    }
 }
 
 private fun targetTranslateCode(appLanguage: String): String? {
@@ -76,7 +92,7 @@ internal fun AutoTranslatedMessage(
             }
             val translator = ChatTranslationCache.translator(sourceCode, targetLanguage)
             // Models are cached by ML Kit after first download; original remains visible meanwhile.
-            translator.downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
+            ChatTranslationCache.ensureModel(sourceCode, targetLanguage)
             translated = translator.translate(original).await()
             translationStatus = "done"
         } catch (_: Exception) {
