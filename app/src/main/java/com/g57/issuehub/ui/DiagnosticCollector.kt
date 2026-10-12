@@ -20,6 +20,7 @@ data class DeviceSnapshot(
     val model: String,
     val androidVersion: String,
     val soc: String,
+    val cpuModel: String,
     val gpu: String,
     val appVersion: String,
     val totalRamMb: Long?,
@@ -46,6 +47,7 @@ data class DeviceSnapshot(
         appendLine("Device: $manufacturer $model")
         appendLine("Android: $androidVersion")
         appendLine("SoC: $soc")
+        appendLine("CPU model: $cpuModel")
         appendLine("GPU: $gpu")
         appendLine("RAM total: ${totalRamMb?.let { "$it MB" } ?: "Not available"}")
         appendLine("RAM available: ${availableRamMb?.let { "$it MB" } ?: "Not available"}")
@@ -87,6 +89,12 @@ object DiagnosticCollector {
         val availableMb = if (activityManager != null) memory.availMem / (1024L * 1024L) else null
         val soc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MODEL.takeIf { it.isNotBlank() && it != "unknown" }
             else null
+        val cpuModel = runCatching {
+            File("/proc/cpuinfo").useLines { lines ->
+                lines.firstOrNull { it.startsWith("Hardware", true) || it.startsWith("model name", true) || it.startsWith("Processor", true) }
+                    ?.substringAfter(':')?.trim()?.takeIf { it.isNotBlank() }
+            }
+        }.getOrNull() ?: "Not exposed by Android"
         // Query the actual OpenGL renderer through a tiny off-screen EGL context.
         // This is more reliable than guessing the GPU from the device codename.
         val gpu = detectGpuRenderer()
@@ -114,6 +122,7 @@ object DiagnosticCollector {
             model = Build.MODEL.ifBlank { Build.DEVICE.ifBlank { "Unknown" } },
             androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
             soc = soc ?: Build.HARDWARE.takeIf { it.isNotBlank() && it != "unknown" } ?: "Not exposed by Android",
+            cpuModel = cpuModel,
             gpu = gpu,
             appVersion = version,
             totalRamMb = totalMb,
@@ -224,6 +233,11 @@ object DiagnosticCollector {
                 appendLine("Device: ${snapshot.manufacturer} ${snapshot.model}")
                 appendLine("Android: ${snapshot.androidVersion}")
                 appendLine("SoC: ${snapshot.soc}")
+                appendLine("CPU model: ${snapshot.cpuModel}")
+                appendLine("CPU cores: ${snapshot.cpuCores}")
+                appendLine("RAM total: ${snapshot.totalRamMb?.let { "$it MB" } ?: "Not available"}")
+                appendLine("RAM available: ${snapshot.availableRamMb?.let { "$it MB" } ?: "Not available"}")
+                appendLine("Supported ABIs: ${snapshot.supportedAbis}")
                 appendLine("GPU: ${snapshot.gpu}")
             } else {
                 appendLine("Device details: omitted by Privacy & File Controls.")
