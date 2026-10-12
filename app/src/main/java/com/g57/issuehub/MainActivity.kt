@@ -19,12 +19,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,6 +39,52 @@ import com.g57.issuehub.data.Notification
 import com.g57.issuehub.data.Profile
 import com.g57.issuehub.ui.*
 import java.util.Locale
+
+
+@Composable
+private fun AppText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    fontWeight: FontWeight? = null,
+    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    style: androidx.compose.ui.text.TextStyle = androidx.compose.material3.LocalTextStyle.current
+) {
+    val language = LocalAppLanguage.current
+    val translated = remember(text, language) { mutableStateOf(UiTextTranslationCache.get(language, text) ?: text) }
+    LaunchedEffect(text, language) {
+        translated.value = UiTextTranslationCache.get(language, text) ?: text
+        if (language == "en" || text.isBlank() || translated.value != text) return@LaunchedEffect
+        val target = when (language) {
+            "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
+            "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
+            else -> null
+        } ?: return@LaunchedEffect
+        try {
+            val detected = ChatTranslationCache.identifier.identifyLanguage(text).await()
+            val source = if (detected == "und") com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
+                else com.google.mlkit.nl.translate.TranslateLanguage.fromLanguageTag(detected)
+            if (source == null || source == target) return@LaunchedEffect
+            val translator = ChatTranslationCache.translator(source, target)
+            translator.downloadModelIfNeeded(com.google.mlkit.common.model.DownloadConditions.Builder().build()).await()
+            val result = translator.translate(text).await()
+            UiTextTranslationCache.put(language, text, result)
+            translated.value = result
+        } catch (_: Exception) {
+            // Keep the source text readable if a model is unavailable or offline.
+        }
+    }
+    MaterialText(
+        text = translated.value,
+        modifier = modifier,
+        color = color,
+        fontWeight = fontWeight,
+        textAlign = textAlign,
+        maxLines = maxLines,
+        style = style
+    )
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,7 +139,11 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     val palette = g57Palette(ui.themeChoice)
     LaunchedEffect(ui.screen) { drawerState.close() }
 
-    CompositionLocalProvider(LocalG57Palette provides palette) {
+    CompositionLocalProvider(
+        LocalG57Palette provides palette,
+        LocalAppLanguage provides ui.appLanguage,
+        LocalLayoutDirection provides if (ui.appLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+    ) {
     MaterialTheme(
         colorScheme = if (palette.light) lightColorScheme(
             background = palette.background, surface = palette.surface, primary = palette.primary,
@@ -108,31 +161,31 @@ fun G57App(vm: G57ViewModel = viewModel()) {
             drawerContent = {
                 if (ui.screen != ScreenState.Login) {
                     ModalDrawerSheet(drawerContainerColor = G57Card, drawerContentColor = G57Text) {
-                        Text("GMailGPU", modifier = Modifier.padding(start = 22.dp, top = 24.dp, bottom = 4.dp), color = G57Primary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-                        Text("Navigation", modifier = Modifier.padding(start = 22.dp, bottom = 18.dp), color = G57Muted)
+                        AppText("GMailGPU", modifier = Modifier.padding(start = 22.dp, top = 24.dp, bottom = 4.dp), color = G57Primary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+                        AppText("Navigation", modifier = Modifier.padding(start = 22.dp, bottom = 18.dp), color = G57Muted)
                         NavigationDrawerItem(
-                            label = { Text("Home") },
+                            label = { AppText("Home") },
                             selected = ui.screen == ScreenState.UserHome || ui.screen == ScreenState.AdminHome,
                             icon = { Icon(Icons.Default.Home, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.goHome() },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
-                            label = { Text("Need Help? • How To Use App") },
+                            label = { AppText("Need Help? • How To Use App") },
                             selected = ui.screen == ScreenState.Help,
                             icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.openHelp() },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
-                            label = { Text("Settings") },
+                            label = { AppText("Settings") },
                             selected = ui.screen == ScreenState.Settings,
                             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.openSettings() },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
-                            label = { Text("Mali Driver Developers") },
+                            label = { AppText("Mali Driver Developers") },
                             selected = ui.screen == ScreenState.DriverDevelopers,
                             icon = { Icon(Icons.Default.Code, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.openDriverDevelopers() },
@@ -140,7 +193,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                         )
                         Spacer(Modifier.weight(1f))
                         NavigationDrawerItem(
-                            label = { Text("Sign out") },
+                            label = { AppText("Sign out") },
                             selected = false,
                             icon = { Icon(Icons.Default.Logout, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.logout() },
@@ -193,13 +246,13 @@ private fun BrandHeader(subtitle: String? = null, onMenu: (() -> Unit)? = null, 
                     horizontalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Text("BACK", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge)
+                    AppText("BACK", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
         Column(Modifier.weight(1f)) {
-            Text("GMailGPU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = G57Primary)
-            if (subtitle != null) Text(subtitle, color = G57Muted)
+            AppText("GMailGPU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = G57Primary)
+            if (subtitle != null) AppText(subtitle, color = G57Muted)
         }
     }
 }
@@ -209,10 +262,10 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Image(painterResource(com.g57.issuehub.R.drawable.g57_uploaded_logo), "G57 logo", Modifier.size(112.dp))
         Spacer(Modifier.height(12.dp))
-        Text("GMailGPU", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = G57Primary)
-        Text("G57 • G52 • G615 • G720 | Mali GPU Support", color = G57Cyan, style = MaterialTheme.typography.titleMedium)
+        AppText("GMailGPU", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = G57Primary)
+        AppText("G57 • G52 • G615 • G720 | Mali GPU Support", color = G57Cyan, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(24.dp))
-        Text("Choose access", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        AppText("Choose access", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RoleCard("USER", "Report & track issues", ui.loginRole == "user", { vm.setLoginRole("user") }, Modifier.weight(1f))
@@ -222,8 +275,8 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
         OutlinedTextField(
             ui.username,
             vm::setUsername,
-            label = { Text("Username") },
-            supportingText = { Text(if (ui.loginRole == "user") "Choose a unique username" else "Admin username") },
+            label = { AppText("Username") },
+            supportingText = { AppText(if (ui.loginRole == "user") "Choose a unique username" else "Admin username") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -233,13 +286,13 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
                 FilterChip(
                     selected = !ui.userCreateAccount,
                     onClick = { vm.setUserCreateAccount(false) },
-                    label = { Text("SIGN IN") },
+                    label = { AppText("SIGN IN") },
                     modifier = Modifier.weight(1f)
                 )
                 FilterChip(
                     selected = ui.userCreateAccount,
                     onClick = { vm.setUserCreateAccount(true) },
-                    label = { Text("CREATE ACCOUNT") },
+                    label = { AppText("CREATE ACCOUNT") },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -248,17 +301,17 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
         OutlinedTextField(
             ui.password,
             vm::setPassword,
-            label = { Text("Password") },
-            supportingText = { Text(if (ui.loginRole == "user" && ui.userCreateAccount) "Use at least 8 characters. Keep it safe for reinstalling." else "Your account password") },
+            label = { AppText("Password") },
+            supportingText = { AppText(if (ui.loginRole == "user" && ui.userCreateAccount) "Use at least 8 characters. Keep it safe for reinstalling." else "Your account password") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.height(18.dp))
         Button(onClick = vm::login, enabled = !ui.loading, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            Text(if (ui.loading) "PLEASE WAIT…" else if (ui.loginRole == "user") { if (ui.userCreateAccount) "CREATE ACCOUNT" else "SIGN IN" } else "SIGN IN")
+            AppText(if (ui.loading) "PLEASE WAIT…" else if (ui.loginRole == "user") { if (ui.userCreateAccount) "CREATE ACCOUNT" else "SIGN IN" } else "SIGN IN")
         }
-        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp)) }
+        ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp)) }
     }
 }
 
@@ -268,8 +321,8 @@ private fun RoleCard(title: String, subtitle: String, selected: Boolean, onClick
         Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(if (title == "ADMIN") Icons.Default.AdminPanelSettings else Icons.Default.Person, null, tint = if (selected) G57Primary else G57Cyan)
             Spacer(Modifier.height(6.dp))
-            Text(title, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = G57Muted, style = MaterialTheme.typography.labelSmall)
+            AppText(title, fontWeight = FontWeight.Bold)
+            AppText(subtitle, color = G57Muted, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -286,14 +339,14 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
         BrandHeader("Your issues", onMenu = onMenu)
         Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge)
+                AppText("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge)
                 val unread = ui.notifications.count { it.readAt == null }
-                if (unread > 0) Text("🔔 $unread notification${if (unread == 1) "" else "s"}", color = G57Cyan)
+                if (unread > 0) AppText("🔔 $unread notification${if (unread == 1) "" else "s"}", color = G57Cyan)
             }
         }
         Spacer(Modifier.height(14.dp))
         Button(vm::openCreate, Modifier.fillMaxWidth().padding(horizontal = 20.dp), shape = RoundedCornerShape(18.dp)) {
-            Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("CREATE ISSUE")
+            Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); AppText("CREATE ISSUE")
         }
         Spacer(Modifier.height(18.dp))
         IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.")
@@ -309,10 +362,10 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                 TextButton(onClick = {
                     vm.markNotificationRead(notification)
                     shownNotification = null
-                }) { Text("OK") }
+                }) { AppText("OK") }
             },
-            title = { Text("GMailGPU • Problem Resolved ✅") },
-            text = { Text("${notification.title}\n\n${notification.message}") }
+            title = { AppText("GMailGPU • Problem Resolved ✅") },
+            text = { AppText("${notification.title}\n\n${notification.message}") }
         )
     }
 }
@@ -324,8 +377,8 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
         BrandHeader("ADMIN PANEL", onMenu = onMenu)
         Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("All Issues", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("Developer access", color = G57Cyan)
+                AppText("All Issues", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                AppText("Developer access", color = G57Cyan)
             }
             IconButton(onClick = vm::openUserManagement) {
                 Icon(Icons.Default.ManageAccounts, contentDescription = "User management")
@@ -364,7 +417,7 @@ private fun HelpScreen(vm: G57ViewModel) {
             Button(onClick = { vm.openCreate() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("CREATE ISSUE")
+                AppText("CREATE ISSUE")
             }
         }
     }
@@ -378,8 +431,8 @@ private fun HelpStep(title: String, body: String) {
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, color = G57Cyan, fontWeight = FontWeight.Bold)
-            Text(body, color = G57Text)
+            AppText(title, color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText(body, color = G57Text)
         }
     }
 }
@@ -392,8 +445,8 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("APP LANGUAGE", color = G57Cyan, fontWeight = FontWeight.Bold)
-            Text("Choose English, Arabic, or Brazilian Portuguese. This preference is saved on this device and controls the automatic chat-translation target.", color = G57Muted)
+            AppText("APP LANGUAGE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Choose English, Arabic, or Brazilian Portuguese. This preference is saved on this device and controls the automatic chat-translation target.", color = G57Muted)
             listOf("en" to "English", "ar" to "العربية", "pt-BR" to "Português (Brasil)").forEach { (code, label) ->
                 Card(
                     onClick = { vm.setAppLanguage(code) },
@@ -406,14 +459,14 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        AppText(label, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                         if (ui.appLanguage == code) Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = G57Primary)
                     }
                 }
             }
             Divider(color = G57Border)
-            Text("APP APPEARANCE", color = G57Cyan, fontWeight = FontWeight.Bold)
-            Text("Choose a complete app theme. Backgrounds, cards, text, borders, and accent colors change together. Your choice is saved on this device.", color = G57Muted)
+            AppText("APP APPEARANCE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Choose a complete app theme. Backgrounds, cards, text, borders, and accent colors change together. Your choice is saved on this device.", color = G57Muted)
             listOf(
                 "Violet" to Color(0xFF9B7BFF),
                 "Ocean" to Color(0xFF48B8E8),
@@ -435,41 +488,41 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Surface(color = color, shape = RoundedCornerShape(50), modifier = Modifier.size(24.dp)) {}
                         Spacer(Modifier.width(12.dp))
-                        Text(name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                        AppText(name, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
                         if (ui.themeChoice == name) Icon(Icons.Default.CheckCircle, contentDescription = "Selected", tint = color)
                     }
                 }
             }
-            Text("Theme changes apply across the whole app immediately and remain saved after restarting.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("Theme changes apply across the whole app immediately and remain saved after restarting.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             Divider(color = G57Border)
-            Text("PRIVACY & FILE CONTROLS", color = G57Cyan, fontWeight = FontWeight.Bold)
-            Text("These preferences stay on this device. Nothing is uploaded until you attach a file to an issue and submit it.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("PRIVACY & FILE CONTROLS", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("These preferences stay on this device. Nothing is uploaded until you attach a file to an issue and submit it.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Include device details in reports", fontWeight = FontWeight.SemiBold)
-                    Text("Model, Android version, SoC and available memory when Android exposes them.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    AppText("Include device details in reports", fontWeight = FontWeight.SemiBold)
+                    AppText("Model, Android version, SoC and available memory when Android exposes them.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
                 }
                 Checkbox(checked = ui.includeDeviceDiagnostics, onCheckedChange = vm::setIncludeDeviceDiagnostics)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Allow app-process logcat collection", fontWeight = FontWeight.SemiBold)
-                    Text("Off by default. Only this app process is requested; Android may restrict access.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    AppText("Allow app-process logcat collection", fontWeight = FontWeight.SemiBold)
+                    AppText("Off by default. Only this app process is requested; Android may restrict access.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
                 }
                 Checkbox(checked = ui.collectAppLogsEnabled, onCheckedChange = vm::setCollectAppLogsEnabled)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Redact likely sensitive data", fontWeight = FontWeight.SemiBold)
-                    Text("Masks common token/password fields and email addresses in collected logs.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    AppText("Redact likely sensitive data", fontWeight = FontWeight.SemiBold)
+                    AppText("Masks common token/password fields and email addresses in collected logs.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
                 }
                 Checkbox(checked = ui.redactSensitiveLogs, onCheckedChange = vm::setRedactSensitiveLogs)
             }
-            Text("Review every report or log file before uploading. Redaction is best-effort and may not catch every secret.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("Review every report or log file before uploading. Redaction is best-effort and may not catch every secret.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             OutlinedButton(onClick = { vm.logout() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Logout, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("SIGN OUT")
+                AppText("SIGN OUT")
             }
         }
     }
@@ -481,7 +534,7 @@ private fun AdminSolvedUsers(ui: UiState, vm: G57ViewModel) {
     Column(Modifier.fillMaxSize()) {
         BrandHeader("USERS WITH RESOLVED ISSUES") { vm.back() }
         if (ui.resolvedUsers.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No resolved users yet.", color = G57Muted) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AppText("No resolved users yet.", color = G57Muted) }
         } else {
             LazyColumn(contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(ui.resolvedUsers) { user ->
@@ -490,9 +543,9 @@ private fun AdminSolvedUsers(ui: UiState, vm: G57ViewModel) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF63E6BE))
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(user.username, fontWeight = FontWeight.Bold)
-                                Text("${user.issueCount} resolved issue(s) • latest #${user.latestIssueNumber}", color = G57Muted)
-                                Text(user.latestTitle, style = MaterialTheme.typography.bodySmall)
+                                AppText(user.username, fontWeight = FontWeight.Bold)
+                                AppText("${user.issueCount} resolved issue(s) • latest #${user.latestIssueNumber}", color = G57Muted)
+                                AppText(user.latestTitle, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
@@ -514,7 +567,7 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
     )
     Column(Modifier.fillMaxSize()) {
         BrandHeader("GMailGPU • Mali Driver Developers") { vm.back() }
-        Text(
+        AppText(
             "🤝 These open-source driver projects may help you investigate Mali GPU, Vulkan, and Winlator issues.",
             color = G57Muted,
             style = MaterialTheme.typography.bodySmall,
@@ -535,15 +588,15 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Code, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(26.dp))
                             Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) { Text("GPU • $gpu", color = G57Cyan, style = MaterialTheme.typography.labelMedium); Text(name, fontWeight = FontWeight.Bold) }
+                            Column(Modifier.weight(1f)) { AppText("GPU • $gpu", color = G57Cyan, style = MaterialTheme.typography.labelMedium); AppText(name, fontWeight = FontWeight.Bold) }
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text(url, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                        AppText(url, color = G57Muted, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(12.dp))
                         Button(onClick = { vm.openExternalUrl(url) }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Default.OpenInNew, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("OPEN GITHUB")
+                            AppText("OPEN GITHUB")
                         }
                     }
                 }
@@ -559,16 +612,16 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
             ) {
                 Icon(Icons.Default.Download, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Winlator Download Charan")
+                AppText("Winlator Download Charan")
             }
             Spacer(Modifier.height(12.dp))
-            Text(
+            AppText(
                 "Contact Us on Telegram",
                 color = G57Cyan,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold
             )
-            Text(
+            AppText(
                 "Jin woo { PanVK tester }",
                 color = G57Primary,
                 style = MaterialTheme.typography.titleSmall,
@@ -586,18 +639,18 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
     LaunchedEffect(Unit) { vm.loadUsers(); vm.loadIssues(true) }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("USER MANAGEMENT") { vm.back() }
-        Text(
+        AppText(
             "Registered profiles • deleting a user removes their linked issues and notifications.",
             color = G57Muted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
         )
-        ui.success?.let { Text(it, color = G57Cyan, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
-        ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+        ui.success?.let { AppText(it, color = G57Cyan, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
+        ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) }
         if (ui.loading && ui.userProfiles.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (ui.userProfiles.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No profiles found.", color = G57Muted) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { AppText("No profiles found.", color = G57Muted) }
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(20.dp),
@@ -618,10 +671,10 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
                                 )
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(profile.username, fontWeight = FontWeight.Bold)
-                                    Text("Role: ${profile.role}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                    Text("Issues: ${ui.issues.count { it.userId == profile.id }}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                    profile.createdAt?.let { Text("Created: ${it.take(10)}", color = G57Muted, style = MaterialTheme.typography.bodySmall) }
+                                    AppText(profile.username, fontWeight = FontWeight.Bold)
+                                    AppText("Role: ${profile.role}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                    AppText("Issues: ${ui.issues.count { it.userId == profile.id }}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                    profile.createdAt?.let { AppText("Created: ${it.take(10)}", color = G57Muted, style = MaterialTheme.typography.bodySmall) }
                                 }
                             }
                             if (profile.role != "admin" && profile.id != ui.profile?.id) {
@@ -634,7 +687,7 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
                                 ) {
                                     Icon(Icons.Default.DeleteForever, contentDescription = null)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("DELETE USER")
+                                    AppText("DELETE USER")
                                 }
                             }
                         }
@@ -646,14 +699,14 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
     selectedUser?.let { profile ->
         AlertDialog(
             onDismissRequest = { selectedUser = null },
-            title = { Text("Delete ${profile.username}?") },
-            text = { Text("This permanently deletes the Auth account, profile, issues, attachments metadata and notifications. This cannot be undone.") },
+            title = { AppText("Delete ${profile.username}?") },
+            text = { AppText("This permanently deletes the Auth account, profile, issues, attachments metadata and notifications. This cannot be undone.") },
             confirmButton = {
                 TextButton(onClick = { selectedUser = null; vm.deleteUser(profile) }, enabled = !ui.loading) {
-                    Text("DELETE", color = MaterialTheme.colorScheme.error)
+                    AppText("DELETE", color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { selectedUser = null }) { Text("CANCEL") } }
+            dismissButton = { TextButton(onClick = { selectedUser = null }) { AppText("CANCEL") } }
         )
     }
 }
@@ -662,8 +715,8 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
 private fun StatChip(name: String, count: Int) {
     Surface(shape = RoundedCornerShape(14.dp), color = G57Card) {
         Column(Modifier.padding(horizontal = 11.dp, vertical = 9.dp)) {
-            Text(count.toString(), fontWeight = FontWeight.Bold)
-            Text(name, style = MaterialTheme.typography.labelSmall, color = G57Muted)
+            AppText(count.toString(), fontWeight = FontWeight.Bold)
+            AppText(name, style = MaterialTheme.typography.labelSmall, color = G57Muted)
         }
     }
 }
@@ -698,7 +751,7 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
                 FilterChip(
                     selected = selectedGroup == name,
                     onClick = { selectedGroup = name },
-                    label = { Text("$name ($count)") },
+                    label = { AppText("$name ($count)") },
                     leadingIcon = if (selectedGroup == name) {
                         { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                     } else null
@@ -707,7 +760,7 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
         }
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
+                AppText(
                     if (issues.isEmpty()) emptyText else "No issues in ${selectedGroup.lowercase()} yet.",
                     color = G57Muted
                 )
@@ -728,16 +781,16 @@ private fun IssueCard(issue: Issue, onClick: (Issue) -> Unit) {
     ElevatedCard(onClick = { onClick(issue) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = G57Card)) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("#${issue.issueNumber}", color = G57Cyan, fontWeight = FontWeight.Bold)
+                AppText("#${issue.issueNumber}", color = G57Cyan, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(10.dp))
                 StatusBadge(issue.status)
             }
             Spacer(Modifier.height(8.dp))
-            Text(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            AppText(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
-            Text("${issue.game} • ${issue.problemType}", color = G57Muted)
-            if (issue.userUsername != null) Text("User: ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
-            Text("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("${issue.game} • ${issue.problemType}", color = G57Muted)
+            if (issue.userUsername != null) AppText("User: ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
+            AppText("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -745,7 +798,7 @@ private fun IssueCard(issue: Issue, onClick: (Issue) -> Unit) {
 @Composable
 private fun StatusBadge(status: String) {
     val label = status.replace('_', ' ').replaceFirstChar { it.titlecase(Locale.getDefault()) }
-    AssistChip(onClick = {}, label = { Text(label) }, leadingIcon = { Icon(Icons.Default.Circle, null, Modifier.size(8.dp)) })
+    AssistChip(onClick = {}, label = { AppText(label) }, leadingIcon = { Icon(Icons.Default.Circle, null, Modifier.size(8.dp)) })
 }
 
 @Composable
@@ -765,79 +818,79 @@ private fun CreateIssueScreen(ui: UiState, vm: G57ViewModel) {
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Create an issue") { vm.back() }
         Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("PROBLEM", color = G57Cyan, fontWeight = FontWeight.Bold)
-            OutlinedTextField(ui.title, { vm.setField("title", it) }, label = { Text("Issue title") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.game, { vm.setField("game", it) }, label = { Text("Game") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.gameVersion, { vm.setField("gameVersion", it) }, label = { Text("Game version (optional)") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.description, { vm.setField("description", it) }, label = { Text("Describe the problem (English only)") }, supportingText = { Text("Write the steps, exact error message, and expected result in English.") }, minLines = 6, modifier = Modifier.fillMaxWidth())
-            Text("Problem type", color = G57Muted)
+            AppText("PROBLEM", color = G57Cyan, fontWeight = FontWeight.Bold)
+            OutlinedTextField(ui.title, { vm.setField("title", it) }, label = { AppText("Issue title") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.game, { vm.setField("game", it) }, label = { AppText("Game") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.gameVersion, { vm.setField("gameVersion", it) }, label = { AppText("Game version (optional)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.description, { vm.setField("description", it) }, label = { AppText("Describe the problem (English only)") }, supportingText = { AppText("Write the steps, exact error message, and expected result in English.") }, minLines = 6, modifier = Modifier.fillMaxWidth())
+            AppText("Problem type", color = G57Muted)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 4.dp)) {
                 listOf("Crash", "Black Screen", "Graphics", "Performance", "Vulkan Error", "Other").forEach { type ->
-                    FilterChip(selected = ui.problemType == type, onClick = { vm.setProblemType(type) }, label = { Text(type) })
+                    FilterChip(selected = ui.problemType == type, onClick = { vm.setProblemType(type) }, label = { AppText(type) })
                 }
             }
-            Text("ENVIRONMENT", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-            OutlinedTextField(ui.gpu, { vm.setField("gpu", it) }, label = { Text("GPU model (verify auto-detection)") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.soc, { vm.setField("soc", it) }, label = { Text("SoC / chipset") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.driver, { vm.setField("driver", it) }, label = { Text("Driver") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.emulator, { vm.setField("emulator", it) }, label = { Text("Emulator") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.emulatorVersion, { vm.setField("emulatorVersion", it) }, label = { Text("Emulator version") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.dxvk, { vm.setField("dxvk", it) }, label = { Text("DXVK") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.wine, { vm.setField("wine", it) }, label = { Text("Wine") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.proton, { vm.setField("proton", it) }, label = { Text("Proton") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.vkd3d, { vm.setField("vkd3d", it) }, label = { Text("VKD3D") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(ui.box64, { vm.setField("box64", it) }, label = { Text("Box64") }, modifier = Modifier.fillMaxWidth())
+            AppText("ENVIRONMENT", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            OutlinedTextField(ui.gpu, { vm.setField("gpu", it) }, label = { AppText("GPU model (verify auto-detection)") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.soc, { vm.setField("soc", it) }, label = { AppText("SoC / chipset") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.driver, { vm.setField("driver", it) }, label = { AppText("Driver") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.emulator, { vm.setField("emulator", it) }, label = { AppText("Emulator") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.emulatorVersion, { vm.setField("emulatorVersion", it) }, label = { AppText("Emulator version") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.dxvk, { vm.setField("dxvk", it) }, label = { AppText("DXVK") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.wine, { vm.setField("wine", it) }, label = { AppText("Wine") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.proton, { vm.setField("proton", it) }, label = { AppText("Proton") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.vkd3d, { vm.setField("vkd3d", it) }, label = { AppText("VKD3D") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(ui.box64, { vm.setField("box64", it) }, label = { AppText("Box64") }, modifier = Modifier.fillMaxWidth())
 
-            Text("ATTACHMENTS • REQUIRED", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
-            Text(
+            AppText("ATTACHMENTS • REQUIRED", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            AppText(
                 "You must attach at least one diagnostic log file OR one video showing the problem. Images alone are not enough. Please write all issue details in English. Maximum 150 MB per file.",
                 color = G57Muted,
                 style = MaterialTheme.typography.bodySmall
             )
             val hasRequiredEvidence = ui.selectedFiles.any { it.type == "log" || it.type == "video" }
-            Text(
+            AppText(
                 if (hasRequiredEvidence) "Required evidence selected." else "Missing required evidence: choose a log file or a video.",
                 color = if (hasRequiredEvidence) G57Cyan else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.labelMedium
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) { Text("📷 Images") }
-                OutlinedButton(onClick = { videoPicker.launch(arrayOf("video/*")) }, modifier = Modifier.weight(1f)) { Text("🎥 Video") }
-                OutlinedButton(onClick = { logPicker.launch(arrayOf("text/*", "application/zip", "application/octet-stream", "application/json")) }, modifier = Modifier.weight(1f)) { Text("📄 Logs") }
+                OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) { AppText("📷 Images") }
+                OutlinedButton(onClick = { videoPicker.launch(arrayOf("video/*")) }, modifier = Modifier.weight(1f)) { AppText("🎥 Video") }
+                OutlinedButton(onClick = { logPicker.launch(arrayOf("text/*", "application/zip", "application/octet-stream", "application/json")) }, modifier = Modifier.weight(1f)) { AppText("📄 Logs") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedButton(onClick = vm::generateDiagnosticReport, enabled = !ui.loading, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Assignment, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("SMART REPORT")
+                    AppText("SMART REPORT")
                 }
                 OutlinedButton(onClick = vm::collectAppLogs, enabled = !ui.loading, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.BugReport, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("COLLECT LOGS")
+                    AppText("COLLECT LOGS")
                 }
             }
-            Text("Generated files are added to the attachment list so you can review and remove them before upload. App logcat collection is controlled in Settings.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("Generated files are added to the attachment list so you can review and remove them before upload. App logcat collection is controlled in Settings.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             if (ui.selectedFiles.isNotEmpty()) {
                 OutlinedButton(onClick = vm::clearSelectedFiles, enabled = !ui.loading, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("CLEAR ALL SELECTED FILES")
+                    AppText("CLEAR ALL SELECTED FILES")
                 }
             }
             ui.selectedFiles.forEachIndexed { index, file ->
                 Surface(color = G57Card, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(file.name, Modifier.weight(1f), maxLines = 1)
-                        Text(formatBytes(file.size), color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                        AppText(file.name, Modifier.weight(1f), maxLines = 1)
+                        AppText(formatBytes(file.size), color = G57Muted, style = MaterialTheme.typography.bodySmall)
                         IconButton(onClick = { vm.removeFile(index) }) { Icon(Icons.Default.Close, contentDescription = "Remove") }
                     }
                 }
             }
-            ui.uploadProgress?.let { Text(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
-            ui.success?.let { Text(it, color = G57Cyan) }
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(vm::submitIssue, enabled = !ui.loading, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) { Text(if (ui.loading) "UPLOADING…" else "SUBMIT ISSUE") }
+            ui.uploadProgress?.let { AppText(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
+            ui.success?.let { AppText(it, color = G57Cyan) }
+            ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
+            Button(vm::submitIssue, enabled = !ui.loading, modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)) { AppText(if (ui.loading) "UPLOADING…" else "SUBMIT ISSUE") }
             Spacer(Modifier.height(24.dp))
         }
     }
@@ -865,7 +918,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 StatusBadge(issue.status)
                 Spacer(Modifier.weight(1f))
             }
-            Text(issue.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AppText(issue.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Button(
                 onClick = { showDelete = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -877,9 +930,9 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             ) {
                 Icon(Icons.Default.DeleteForever, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (admin) "DELETE ISSUE (ADMIN)" else "DELETE MY ISSUE")
+                AppText(if (admin) "DELETE ISSUE (ADMIN)" else "DELETE MY ISSUE")
             }
-            Text(issue.description)
+            AppText(issue.description)
             if (admin) Detail("User", issue.userUsername ?: issue.userId ?: "Unknown")
             Detail("Game", "${issue.game} ${issue.gameVersion.orEmpty()}")
             Detail("Problem", issue.problemType)
@@ -895,26 +948,26 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             Detail("Device", issue.deviceModel ?: "Unknown")
             Detail("Android", issue.androidVersion ?: "Unknown")
 
-            Text("Attachments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
+            AppText("Attachments", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp))
             if (ui.attachments.isEmpty()) {
-                Text("No attachments.", color = G57Muted)
+                AppText("No attachments.", color = G57Muted)
             } else {
                 ui.attachments.forEach { attachment -> AttachmentRow(attachment) { vm.openAttachment(attachment.storagePath) } }
             }
 
             if (!admin) {
-                Text("ADD MORE FILES", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-                Text("Forgot a screenshot, video, or log? Add it here without creating another issue. Maximum 150 MB per file.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                AppText("ADD MORE FILES", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                AppText("Forgot a screenshot, video, or log? Add it here without creating another issue. Maximum 150 MB per file.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) { Text("📷 Images") }
-                    OutlinedButton(onClick = { videoPicker.launch(arrayOf("video/*")) }, modifier = Modifier.weight(1f)) { Text("🎥 Video") }
-                    OutlinedButton(onClick = { logPicker.launch(arrayOf("text/*", "application/zip", "application/octet-stream", "application/json")) }, modifier = Modifier.weight(1f)) { Text("📄 Logs") }
+                    OutlinedButton(onClick = { imagePicker.launch(arrayOf("image/*")) }, modifier = Modifier.weight(1f)) { AppText("📷 Images") }
+                    OutlinedButton(onClick = { videoPicker.launch(arrayOf("video/*")) }, modifier = Modifier.weight(1f)) { AppText("🎥 Video") }
+                    OutlinedButton(onClick = { logPicker.launch(arrayOf("text/*", "application/zip", "application/octet-stream", "application/json")) }, modifier = Modifier.weight(1f)) { AppText("📄 Logs") }
                 }
                 ui.selectedFiles.forEachIndexed { index, file ->
                     Surface(color = G57Card, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(file.name, Modifier.weight(1f), maxLines = 1)
-                            Text(formatBytes(file.size), color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                            AppText(file.name, Modifier.weight(1f), maxLines = 1)
+                            AppText(formatBytes(file.size), color = G57Muted, style = MaterialTheme.typography.bodySmall)
                             IconButton(onClick = { vm.removeFile(index) }, enabled = !ui.loading) {
                                 Icon(Icons.Default.Close, contentDescription = "Remove")
                             }
@@ -928,20 +981,20 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 ) {
                     Icon(Icons.Default.CloudUpload, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text(if (ui.loading) "UPLOADING…" else "UPLOAD FILES TO THIS ISSUE")
+                    AppText(if (ui.loading) "UPLOADING…" else "UPLOAD FILES TO THIS ISSUE")
                 }
-                ui.uploadProgress?.let { Text(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
-                ui.success?.let { Text(it, color = G57Cyan) }
-                ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                ui.uploadProgress?.let { AppText(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
+                ui.success?.let { AppText(it, color = G57Cyan) }
+                ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
             }
 
-            Text(
+            AppText(
                 if (admin) "ISSUE CHAT • USER" else "CHAT WITH DEVELOPER",
                 color = G57Cyan,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 14.dp)
             )
-            Text(
+            AppText(
                 "Messages are saved to this issue. Only the issue owner and admins can read or reply.",
                 color = G57Muted,
                 style = MaterialTheme.typography.bodySmall
@@ -950,11 +1003,11 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 OutlinedButton(onClick = { vm.refreshIssueMessages(issue.id) }, enabled = !ui.loading) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    Text("REFRESH CHAT")
+                    AppText("REFRESH CHAT")
                 }
             }
             if (ui.chatMessages.isEmpty()) {
-                Text("No messages yet. Start the conversation about this issue.", color = G57Muted)
+                AppText("No messages yet. Start the conversation about this issue.", color = G57Muted)
             } else {
                 ui.chatMessages.forEach { message ->
                     val isMine = message.senderId == ui.profile?.id
@@ -964,7 +1017,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(
+                            AppText(
                                 when {
                                     isMine -> "You"
                                     admin -> issue.userUsername ?: "User"
@@ -975,7 +1028,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                             )
                             AutoTranslatedMessage(message.body, ui.appLanguage)
                             message.createdAt?.let {
-                                Text(it.replace("T", " ").take(16), color = G57Muted, style = MaterialTheme.typography.labelSmall)
+                                AppText(it.replace("T", " ").take(16), color = G57Muted, style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -984,8 +1037,8 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             OutlinedTextField(
                 value = ui.chatDraft,
                 onValueChange = vm::setChatDraft,
-                label = { Text("Write a message") },
-                placeholder = { Text("Describe the next step or share a test result…") },
+                label = { AppText("Write a message") },
+                placeholder = { AppText("Describe the next step or share a test result…") },
                 minLines = 2,
                 maxLines = 5,
                 modifier = Modifier.fillMaxWidth(),
@@ -998,27 +1051,27 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             ) {
                 Icon(Icons.Default.Send, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (ui.loading) "SENDING…" else "SEND MESSAGE")
+                AppText(if (ui.loading) "SENDING…" else "SEND MESSAGE")
             }
-            ui.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            ui.success?.let { Text(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
+            ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            ui.success?.let { AppText(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
 
             if (admin) {
-                Text("DEVELOPER TOOLS", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
+                AppText("DEVELOPER TOOLS", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
                 Box {
-                    OutlinedButton(onClick = { statusExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text("Status: ${issue.status.replace('_', ' ')} ▼") }
+                    OutlinedButton(onClick = { statusExpanded = true }, modifier = Modifier.fillMaxWidth()) { AppText("Status: ${issue.status.replace('_', ' ')} ▼") }
                     DropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
                         listOf("open", "investigating", "fix_in_progress", "testing", "fixed", "closed").forEach { status ->
-                            DropdownMenuItem(text = { Text(status.replace('_', ' ').replaceFirstChar { it.titlecase(Locale.getDefault()) }) }, onClick = {
+                            DropdownMenuItem(text = { AppText(status.replace('_', ' ').replaceFirstChar { it.titlecase(Locale.getDefault()) }) }, onClick = {
                                 statusExpanded = false
                                 vm.updateStatus(issue.id, status)
                             })
                         }
                     }
                 }
-                OutlinedTextField(note, { note = it }, label = { Text("Developer note") }, minLines = 4, modifier = Modifier.fillMaxWidth())
-                Button(onClick = { vm.saveDeveloperNote(issue.id, note) }, modifier = Modifier.fillMaxWidth()) { Text("SAVE DEVELOPER NOTE") }
-                Text("Setting status to Fixed/Closed creates an in-app notification for the user and adds them to Solved Users.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(note, { note = it }, label = { AppText("Developer note") }, minLines = 4, modifier = Modifier.fillMaxWidth())
+                Button(onClick = { vm.saveDeveloperNote(issue.id, note) }, modifier = Modifier.fillMaxWidth()) { AppText("SAVE DEVELOPER NOTE") }
+                AppText("Setting status to Fixed/Closed creates an in-app notification for the user and adds them to Solved Users.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             }
 
             if (!admin && issue.status in listOf("fixed", "closed")) {
@@ -1026,7 +1079,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF63E6BE))
                         Spacer(Modifier.width(10.dp))
-                        Text("The developer marked this issue as resolved.")
+                        AppText("The developer marked this issue as resolved.")
                     }
                 }
             }
@@ -1038,11 +1091,11 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
         AlertDialog(
             onDismissRequest = { showDelete = false },
             confirmButton = {
-                TextButton(onClick = { showDelete = false; vm.deleteIssue(issue, admin) }) { Text("DELETE", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { showDelete = false; vm.deleteIssue(issue, admin) }) { AppText("DELETE", color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { showDelete = false }) { Text("CANCEL") } },
-            title = { Text("Delete Issue #${issue.issueNumber}?") },
-            text = { Text("This will delete the Issue record and its Cloud attachments. This action cannot be undone.") }
+            dismissButton = { TextButton(onClick = { showDelete = false }) { AppText("CANCEL") } },
+            title = { AppText("Delete Issue #${issue.issueNumber}?") },
+            text = { AppText("This will delete the Issue record and its Cloud attachments. This action cannot be undone.") }
         )
     }
 }
@@ -1059,8 +1112,8 @@ private fun AttachmentRow(attachment: Attachment, onOpen: () -> Unit) {
             Icon(icon, contentDescription = null, tint = G57Cyan)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(attachment.filename, maxLines = 1, fontWeight = FontWeight.SemiBold)
-                Text("${attachment.type.uppercase(Locale.getDefault())} • ${formatBytes(attachment.size ?: 0)}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                AppText(attachment.filename, maxLines = 1, fontWeight = FontWeight.SemiBold)
+                AppText("${attachment.type.uppercase(Locale.getDefault())} • ${formatBytes(attachment.size ?: 0)}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             }
             Icon(Icons.Default.OpenInNew, null)
         }
@@ -1070,7 +1123,7 @@ private fun AttachmentRow(attachment: Attachment, onOpen: () -> Unit) {
 @Composable
 private fun Detail(name: String, value: String) {
     Surface(color = G57Card, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(14.dp)) { Text(name, Modifier.weight(0.35f), color = G57Cyan, fontWeight = FontWeight.Bold); Text(value, Modifier.weight(0.65f)) }
+        Row(Modifier.padding(14.dp)) { AppText(name, Modifier.weight(0.35f), color = G57Cyan, fontWeight = FontWeight.Bold); AppText(value, Modifier.weight(0.65f)) }
     }
 }
 
