@@ -129,7 +129,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(ui.appLanguage) {
-        val target = when (ui.appLanguage) {
+        val target = when (resolveAppLanguage(ui.appLanguage)) {
             "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
             "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
             else -> null
@@ -187,8 +187,8 @@ fun G57App(vm: G57ViewModel = viewModel()) {
 
     CompositionLocalProvider(
         LocalG57Palette provides palette,
-        LocalAppLanguage provides ui.appLanguage,
-        LocalLayoutDirection provides if (ui.appLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+        LocalAppLanguage provides resolveAppLanguage(ui.appLanguage),
+        LocalLayoutDirection provides if (resolveAppLanguage(ui.appLanguage) == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
     MaterialTheme(
         colorScheme = if (palette.light) lightColorScheme(
