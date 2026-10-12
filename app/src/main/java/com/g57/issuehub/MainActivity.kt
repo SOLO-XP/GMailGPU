@@ -1191,10 +1191,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 TextButton(onClick = vm::closeAttachmentPreview) { AppText("CLOSE") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    ui.attachments.firstOrNull { it.filename == ui.attachmentPreviewName }?.let(vm::openAttachment)
-                    vm.closeAttachmentPreview()
-                }) { AppText("OPEN FILE") }
+                TextButton(onClick = vm::openAttachmentExternally) { AppText("OPEN FILE") }
             }
         )
     }
