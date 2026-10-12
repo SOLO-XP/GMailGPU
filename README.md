@@ -1,120 +1,119 @@
 # 🚀 GMailGPU — Mali GPU Community Hub
 
 <p align="center">
-  <strong>🛠️ Better reports. Smarter debugging. Stronger Mali gaming.</strong>
+  <strong>🛠️ Better bug reports. Clearer diagnostics. Stronger Mali gaming.</strong>
 </p>
 
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
   <img alt="Language" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Backend" src="https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase&logoColor=white">
-  <img alt="GPU Families" src="https://img.shields.io/badge/Mali-G57%20%7C%20G52%20%7C%20G615%20%7C%20G720-111827">
+  <img alt="GPU families" src="https://img.shields.io/badge/Mali-G57%20%7C%20G52%20%7C%20G615%20%7C%20G720-111827">
   <img alt="Version" src="https://img.shields.io/badge/Version-0.2%20Beta-00B8D9">
 </p>
 
-**GMailGPU 0.2 Beta** is an Android community hub for reporting Mali GPU driver issues and finding relevant open-source driver projects for **G57, G52, G615, and G720**. It helps users organize crash reports, Vulkan errors, rendering glitches, black screens, and performance problems with useful diagnostic evidence.
+**GMailGPU** is an early-beta Android community app for reporting Mali GPU driver and Winlator/GameHub compatibility issues. It helps users submit reproducible bug reports, attach diagnostic evidence, communicate with developers, and find community driver projects for **Mali-G57, G52, G615, and G720**.
 
-## ✨ Version 0.2 Beta highlights
+> ⚠️ GPU categories and repository links are community references, not a guarantee that a custom driver works on every device. GMailGPU does not certify drivers or promise that a report will result in a fix.
 
-- 💬 Issue chat inside each report, including message history and manual refresh.
-- 🧑‍💻 User/developer communication based on account permissions.
-- 🎨 UI improvements for a cleaner, more consistent experience.
-- 🏷️ Renamed to GMailGPU to make clear this is the same project with broader Mali GPU coverage.
-- 🎮 Report issues related to Mali-G57, G52, G615, and G720.
-- 🔐 Supabase Row Level Security policies for issue chat.
+## ✨ Core features
 
-> GPU categories are available for issue reporting. This does not guarantee that every listed GPU has a working custom driver.
+- 🐛 **Structured issue reports** for crashes, Vulkan errors, black screens, broken textures, rendering problems, and performance issues.
+- 📎 **Evidence required for new reports:** attach at least one log file or a video. Screenshots alone do not satisfy this requirement.
+- 📂 **Add files later** to an existing issue without creating a duplicate report.
+- 💬 **Issue-specific developer chat** with message history and manual refresh.
+- 🔄 **Issue tracking** with statuses managed by authorized developers.
+- 🧑‍💻 **Role-based views:** users see their own reports; authorized admins/developers can review reports and help troubleshoot.
+- 🧠 **Smart Diagnostic Report** with available device details and editable fields for emulator, driver, Wine, DXVK, VKD3D, and Box64 versions.
+- 🧾 **Automatic Log Collector** for app-process logs, with collection controlled in Settings and subject to Android restrictions.
+- ☁️ **Reliable Upload Center** with upload progress and retries for failed uploads.
+- 🛡️ **Privacy & File Controls** for optional device details, log collection, and best-effort redaction of common sensitive values.
+- 🌐 **Language options** for device-language automatic mode, English, Arabic, and Portuguese (Brazil). Automatic mode maps supported device languages to the app's available language options. Translation models may need to download over the network; if translation is unavailable, some text may remain in English.
+- 🎨 **Updated dashboard layout** with more compact admin actions and issue lists that scroll naturally.
+- 🔗 **Mali Driver Developers** menu with links to community driver repositories.
 
-## 🧭 Help, Settings, and Sign out
+## 📲 Install and update
 
-Open the side menu from the User or Admin home screen:
-- **Need Help? • How To Use App** — step-by-step account, issue submission, required evidence, and chat instructions.
-- **Settings** — choose Violet, Ocean, Emerald, or Amber accent styling. Your choice is saved on this device.
-- **Sign out** — ends the current session and returns to the login screen. The same action is also available in Settings.
-- **Smart Diagnostic Report** — creates a reviewable text attachment with app version, Android/device details, SoC hints, available/total RAM when available, and fields to complete for Winlator/GameHub, driver, Wine, DXVK, VKD3D, and Box64. Android does not reliably expose the exact GPU model or emulator versions, so verify those manually.
-- **Automatic Log Collector** — creates an app-process log bundle. App logcat capture is off by default and must be enabled in Settings; Android may still restrict access. Common secret/token fields and email addresses can be redacted before upload.
-- **Reliable Upload Center** — shows per-file upload progress and retries failed uploads up to three attempts. If an additional-file upload fails, review the remaining selected files and retry; some earlier files may already have reached the server.
-- **Privacy & File Controls** — control device details, app-process logcat collection, and best-effort redaction. Review and remove selected attachments before submission; individual files over 150 MB are rejected.
-- **Mali Driver Developers** — opens the existing driver project links.
+1. Open the [GitHub Actions build page](https://github.com/SOLO-XP/GMailGPU/actions/workflows/build-apk.yml) and choose a successful build to access its artifacts, if available.
+2. Read the notes for the build you intend to install.
+3. **For a hotfix build, uninstall the previous app version before installing the new APK** if the release notes specify a clean install. Back up any information you need first.
+4. Install the APK and sign in. Beta builds may be debug-signed and are intended for testing.
 
-## 📘 How to use GMailGPU (step by step)
+A successful workflow run means the build job completed; it does not by itself prove that every feature has been tested on a physical device.
 
-New here? Follow this guide from account creation to sending your first issue.
+## 📘 How to use GMailGPU
 
-### 1. Create a user account
+### 1. Create an account
 
-1. Open GMailGPU on your Android phone.
-2. On the **Choose access** screen, select **USER**. Do not select **ADMIN** unless you have administrator credentials.
-3. Enter a unique username that you will remember.
-4. Select **CREATE ACCOUNT**.
-5. Create a password with **at least 8 characters**. Keep your username and password safe so you can sign in again later.
-6. Tap **CREATE ACCOUNT** and wait for the app to finish. If an error appears, read it and check your connection or whether the username is already taken.
+1. Open the app and choose **USER** on the access screen.
+2. Enter a username and choose **CREATE ACCOUNT**.
+3. Set a password of at least 8 characters.
+4. Keep your login details private. If the username is already taken, choose another one.
 
-### 2. Sign in next time
+Choose **ADMIN** only if you have credentials supplied by the project owner. Public user registration does not grant admin privileges.
+
+### 2. Sign in
 
 1. Select **USER**.
-2. Enter the same username and password you used when registering.
-3. Select **SIGN IN**.
+2. Enter your registered username and password.
+3. Tap **SIGN IN**.
 
-Use **CREATE ACCOUNT** only when registering for the first time. If you already have an account, use **SIGN IN**.
+### 3. Create a useful issue report
 
-### 3. Open a new issue (bug report)
+1. Tap **CREATE ISSUE**.
+2. Add a clear title, the game name, and a description of what happened.
+3. Include the exact error, expected behavior, reproduction steps, and any relevant driver/emulator versions you know. Do not guess unknown versions.
+4. Write the issue title and description in **English** so contributors can review reports consistently.
+5. Attach at least one **diagnostic log or video**. Screenshots by themselves are not enough to submit a new issue.
+6. Review the report and selected attachments, then submit it.
 
-1. From your user home screen, tap **CREATE ISSUE**.
-2. Enter a short, clear **Title**. Example: `Black textures in a game with PanVK`.
-3. Enter the **Game** name.
-4. In **Description**, explain exactly what happens and how to reproduce it. Include any error message and what you expected to happen.
-5. Choose the relevant **Problem Type** and fill in any other details you know, such as driver, emulator, game version, DXVK, Wine, VKD3D, or Box64. If you do not know a version, do not guess.
-6. **Required evidence:** attach at least one diagnostic log file OR one video showing the problem. Screenshots alone do not meet this requirement. The app will block submission if neither a log nor a video is attached.
-7. Write the issue title and description in **English only**, including the exact error and steps to reproduce the problem.
-8. Tap the issue submission button and wait for the confirmation that your issue was submitted.
+Helpful details include your phone model, Android version, SoC/GPU, game version, driver, Winlator/GameHub version, Wine, DXVK, VKD3D, Box64, FPS, and whether the problem is reproducible.
 
-**Tips for a useful report:** mention your phone model, Android version, Mali GPU, game name, driver/emulator versions, FPS or symptoms, and steps that reproduce the problem. Hide passwords, access tokens, and other private information from logs or screenshots.
+### 4. Track an issue and contact a developer
 
-### 4. Open and track your issue
+1. Open a report from **Your issues**.
+2. Check its status and uploaded files.
+3. Use **CHAT WITH DEVELOPER** to send a message in that report.
+4. Tap **REFRESH CHAT** to check for new messages; chat refresh is manual, not live.
 
-1. Your submitted reports appear on the user home screen under **Your issues**.
-2. Tap an issue to open its details.
-3. Check the issue status and the attachments already uploaded.
+### 5. Add evidence to an existing issue
 
-### 5. Send messages to the developer
-
-1. Open one of your existing issues.
-2. Scroll to **CHAT WITH DEVELOPER**.
-3. Type your message in **Write a message**.
-4. Tap **SEND MESSAGE**.
-5. To check for a reply, tap **REFRESH CHAT**. Chat currently uses manual refresh, not live updates.
-
-Keep the conversation inside the same issue so the developer can see the report and its history together.
-
-### 6. Add files to an existing issue (no new report needed)
-
-If you forgot a screenshot or need to send another log:
-
-1. Open the existing issue from **Your issues**.
-2. Find **ADD MORE FILES**.
-3. Choose **Images**, **Video**, or **Logs**.
-4. Review the selected files and remove any you do not want to send.
+1. Open the issue.
+2. Choose **ADD MORE FILES**.
+3. Select images, video, or logs.
+4. Review the selection and remove anything you do not want to upload.
 5. Tap **UPLOAD FILES TO THIS ISSUE**.
 
-The new files are attached to that existing issue; you do not need to create another issue. Uploading is subject to account permissions and storage policies.
+Individual files over **150 MB** are rejected. Uploads require a working connection and valid backend/storage configuration.
 
-### 7. Admin / developer access
+### 6. Settings and diagnostics
 
-The **ADMIN** option is for authorized developers only. Select it and sign in with the administrator username and password provided to you by the project owner. User registration does not create an administrator account. Admins can review reports, update issue status, and reply to users in the issue chat.
+- **Language:** select automatic/device language, English, Arabic, or Portuguese (Brazil). Translation may require an internet connection to download the language model.
+- **Smart Diagnostic Report:** review the generated report and fill in any missing versions before sharing it.
+- **Automatic Log Collector:** enable app-process logcat capture only when needed. Android may restrict which logs can be read.
+- **Privacy & File Controls:** choose which optional diagnostics to include and review attachments before submission.
+- **Theme and appearance:** choose a supported accent/theme option in Settings.
+- **Sign out:** ends the current session on the device.
 
-### Troubleshooting
+Device APIs do not always expose the exact GPU model or emulator/driver versions. Check and correct diagnostic details manually before sharing.
 
-- **Username already taken:** choose a different username.
-- **Password too short:** use at least 8 characters when creating a user account.
-- **Can't sign in:** check the username and password and make sure you selected **USER** and **SIGN IN**.
-- **Chat is empty:** open the correct issue and tap **REFRESH CHAT**. The Supabase chat migration must be applied for chat to work.
-- **Can't upload files:** check your internet connection, file selection, and account permissions.
-- **Cloud/database error:** the app needs a correctly configured Supabase backend; a local/demo screen is not the same as a successful cloud submission.
+## 🔐 Privacy, security, and usage policy
 
-## 🎮 Supported GPU project categories
+- **Use your own account.** Do not share passwords, session tokens, or administrator credentials.
+- **Share only relevant evidence.** Inspect logs, screenshots, videos, and diagnostic reports before upload. Remove passwords, access tokens, personal messages, and unrelated private information.
+- **Collect logs intentionally.** App-process log collection is optional and can be disabled in Settings. Android may limit access to system or other apps' logs.
+- **Access is role-based.** Users should only be able to access their own reports; administrator/developer access depends on configured backend permissions and security policies.
+- **No guarantee of anonymity.** Usernames, issue content, attachments, and technical details may be visible to people authorized to review the relevant issue. Do not upload information you are not comfortable sharing with those reviewers.
+- **Best-effort redaction is not a security guarantee.** Always inspect files yourself; automatic filters can miss sensitive content.
+- **Respect other contributors.** Do not upload malware, illegal content, private information belonging to others, or unrelated files. Do not use the app to harass or impersonate another person.
+- **Beta software warning.** Features, layouts, backend behavior, and upload availability may change. Keep copies of important diagnostic files.
+- **Report security concerns responsibly.** Avoid publishing real users' private data in public issues or screenshots. Contact the project maintainers with enough detail to investigate safely.
 
-These links lead to open-source driver repositories maintained by their respective project owners. They are community resources that may help users and developers investigate issues; they do not guarantee support or a fix.
+GMailGPU is a community troubleshooting tool. It is not affiliated with or endorsed by Arm, Mali, Winlator, GameHub, or the independent driver projects linked below.
+
+## 🎮 Community driver repositories
+
+These repositories are independently maintained. Check each project's own instructions, compatibility notes, and release warnings before installing a driver.
 
 ### 🟣 Mali-G57
 - [Noysz / panvk-g99-jm](https://github.com/Noysz/panvk-g99-jm)
@@ -130,25 +129,6 @@ These links lead to open-source driver repositories maintained by their respecti
 ### 🟠 Mali-G720
 - [wonderkast02 / panvk-g720-kbase-csf](https://github.com/wonderkast02/panvk-g720-kbase-csf)
 
-## ✨ Issue reporting
-
-Include the details that help reproduce a problem:
-
-- 📱 Device model, Android version, SoC, and GPU
-- 🎮 Game name and version
-- ⚙️ Driver, emulator, Wine, DXVK, VKD3D, and Box64 versions
-- 🐛 Exact symptoms: crash, black screen, broken textures, Vulkan error, or low FPS
-- 📎 Screenshots, videos, logs, and steps to reproduce
-
-## 👥 Account roles
-
-- 🙋 **Users:** submit issues, attach evidence, and track their own reports.
-- 🧑‍💻 **Developers/Admins:** review reports, inspect diagnostic files, update statuses, and add troubleshooting notes.
-
-## 🔄 Issue workflow
-
-`Open → Investigating → Fix in Progress → Testing → Fixed → Closed`
-
 ## 🧰 Technology
 
 - 🤖 Android + Kotlin
@@ -157,15 +137,18 @@ Include the details that help reproduce a problem:
 - 🐘 PostgreSQL and Row Level Security
 - ☁️ Supabase Storage for issue attachments
 
-## 📲 Download
+## 🧯 Troubleshooting
 
-➡️ [View GMailGPU builds and releases](https://github.com/SOLO-XP/GMailGPU/actions/workflows/build-apk.yml)
+- **Username already taken:** choose another username.
+- **Can't sign in:** verify the access type, username, password, and connection.
+- **Chat does not load:** open the correct issue and refresh the chat. The required Supabase database migration must be applied.
+- **Upload fails:** check connectivity, file size, backend/storage configuration, and selected files; then retry.
+- **Language remains in English:** automatic mode supports Arabic and Portuguese (Brazil) mapping; translation may need network access to download its model. If it still fails, report the app version and device language with logs, but do not include secrets.
+- **Cloud/database error:** a working Supabase configuration and correct database policies are required; seeing a screen locally does not prove that an issue was successfully saved to the cloud.
 
-This project is in **early beta**. Test builds may be debug-signed and are not production releases. Back up important data and review the release notes before installing.
+## 🧑‍💻 Project status
 
-## 🤝 Community driver resources
-
-The linked projects are maintained independently by their respective developers. Please open technical questions or bug reports in the appropriate repository and include clear logs and reproduction steps.
+GMailGPU is an **early beta**. Please include clear reproduction steps and sanitized logs when reporting an app bug. Build artifacts are provided through [GitHub Actions](https://github.com/SOLO-XP/GMailGPU/actions/workflows/build-apk.yml); use the release notes to identify the intended build.
 
 ---
 
