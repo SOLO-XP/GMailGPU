@@ -9,23 +9,53 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
+import com.google.mlkit.nl.languageid.LanguageIdentifier
 import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
 
 /**
- * Shows the sender's original message and, when possible, an on-device translation
- * into the language configured on this device. The stored chat message is never changed.
+ * Original chat text is shown immediately. Language identification and translators are
+ * reused across messages to avoid repeatedly creating clients and reinitializing models.
  */
+internal object ChatTranslationCache {
+    val identifier: LanguageIdentifier by lazy { LanguageIdentification.getClient() }
+    private val translators = ConcurrentHashMap<String, Translator>()
+
+    fun translator(source: String, target: String): Translator =
+        translators.getOrPut("$source->$target") {
+            Translation.getClient(
+                TranslatorOptions.Builder()
+                    .setSourceLanguage(source)
+                    .setTargetLanguage(target)
+                    .build()
+            )
+        }
+}
+
+private fun targetTranslateCode(appLanguage: String): String? {
+    val tag = when (appLanguage) {
+        "pt-BR" -> "pt"
+        "ar" -> "ar"
+        "en" -> "en"
+        else -> Locale.getDefault().language
+    }
+    return TranslateLanguage.fromLanguageTag(tag)
+}
+
 @Composable
-internal fun AutoTranslatedMessage(original: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val targetLanguage = remember { TranslateLanguage.fromLanguageTag(Locale.getDefault().language) }
+internal fun AutoTranslatedMessage(
+    original: String,
+    appLanguage: String = Locale.getDefault().language,
+    modifier: Modifier = Modifier
+) {
+    val targetLanguage = remember(appLanguage) { targetTranslateCode(appLanguage) }
     var translated by remember(original, targetLanguage) { mutableStateOf<String?>(null) }
     var translationStatus by remember(original, targetLanguage) { mutableStateOf("pending") }
 
@@ -36,32 +66,21 @@ internal fun AutoTranslatedMessage(original: String, modifier: Modifier = Modifi
             return@LaunchedEffect
         }
         translationStatus = "translating"
-        var translator: com.google.mlkit.nl.translate.Translator? = null
         try {
-            val identifier = LanguageIdentification.getClient()
-            val sourceLanguage = identifier.identifyLanguage(original).await()
-            identifier.close()
+            val sourceLanguage = ChatTranslationCache.identifier.identifyLanguage(original).await()
             val sourceCode = if (sourceLanguage == "und") null
                 else TranslateLanguage.fromLanguageTag(sourceLanguage)
             if (sourceCode == null || sourceCode == targetLanguage) {
                 translationStatus = "same"
                 return@LaunchedEffect
             }
-            translator = Translation.getClient(
-                TranslatorOptions.Builder()
-                    .setSourceLanguage(sourceCode)
-                    .setTargetLanguage(targetLanguage)
-                    .build()
-            )
+            val translator = ChatTranslationCache.translator(sourceCode, targetLanguage)
+            // Models are cached by ML Kit after first download; original remains visible meanwhile.
             translator.downloadModelIfNeeded(DownloadConditions.Builder().build()).await()
             translated = translator.translate(original).await()
             translationStatus = "done"
         } catch (_: Exception) {
-            // Unsupported language, unavailable model, or network/model-download failure:
-            // preserve the original message without blocking the chat.
             translationStatus = "unavailable"
-        } finally {
-            translator?.close()
         }
     }
 
@@ -69,8 +88,13 @@ internal fun AutoTranslatedMessage(original: String, modifier: Modifier = Modifi
         Text(original)
         when {
             translationStatus == "done" && translated != null && translated != original -> {
+                val targetLabel = when (appLanguage) {
+                    "ar" -> "العربية"
+                    "pt-BR" -> "Português (Brasil)"
+                    else -> "English"
+                }
                 Text(
-                    "Translation · ${Locale.getDefault().displayLanguage}",
+                    "Translation · $targetLabel",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
@@ -78,7 +102,7 @@ internal fun AutoTranslatedMessage(original: String, modifier: Modifier = Modifi
             }
             translationStatus == "translating" -> {
                 Text(
-                    "Checking translation…",
+                    "Translating…",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
