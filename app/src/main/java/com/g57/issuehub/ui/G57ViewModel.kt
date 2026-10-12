@@ -60,6 +60,9 @@ data class UiState(
     val attachmentPreviewName: String? = null,
     val attachmentPreviewText: String? = null,
     val attachmentPreviewUrl: String? = null,
+    val downloadUrl: String? = null,
+    val downloadFilename: String? = null,
+    val downloadMimeType: String? = null,
     val username: String = "",
     val password: String = "",
     val loginRole: String = "user",
@@ -690,6 +693,33 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    fun downloadAttachment(attachment: Attachment) = viewModelScope.launch {
+        if (!SupabaseProvider.enabled) return@launch
+        update { copy(loading = true, error = null, downloadUrl = null, downloadFilename = null, downloadMimeType = null) }
+        runCatching { repo.signedUrl(attachment.storagePath) }
+            .onSuccess { url ->
+                update {
+                    copy(
+                        loading = false,
+                        downloadUrl = url,
+                        downloadFilename = attachment.filename,
+                        downloadMimeType = attachment.mimeType ?: "application/octet-stream",
+                        success = "Download started: ${attachment.filename}"
+                    )
+                }
+            }
+            .onFailure { e ->
+                update {
+                    copy(
+                        loading = false,
+                        error = "Download failed. Check the Supabase attachment read policy and the admin role. Details: ${e.message ?: "storage access denied"}"
+                    )
+                }
+            }
+    }
+
+    fun clearDownloadRequest() = update { copy(downloadUrl = null, downloadFilename = null, downloadMimeType = null) }
 
     fun closeAttachmentPreview() = update { copy(attachmentPreviewName = null, attachmentPreviewText = null, attachmentPreviewUrl = null) }
 
