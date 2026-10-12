@@ -953,7 +953,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                                 color = if (isMine) G57Cyan else G57Primary,
                                 fontWeight = FontWeight.Bold
                             )
-                            Text(message.body)
+                            AutoTranslatedMessage(message.body)
                             message.createdAt?.let {
                                 Text(it.replace("T", " ").take(16), color = G57Muted, style = MaterialTheme.typography.labelSmall)
                             }
