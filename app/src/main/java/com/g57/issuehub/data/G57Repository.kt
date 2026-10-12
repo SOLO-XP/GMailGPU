@@ -63,31 +63,6 @@ class G57Repository {
         return clean
     }
 
-    suspend fun deleteAuthUser(userId: String) = withContext(Dispatchers.IO) {
-        val session = sb.auth.currentSessionOrNull() ?: error("Admin session expired. Sign in again.")
-        val endpoint = BuildConfig.SUPABASE_URL.trimEnd('/') + "/functions/v1/admin-delete-user"
-        val connection = (URL(endpoint).openConnection() as HttpURLConnection)
-        try {
-            connection.requestMethod = "POST"
-            connection.connectTimeout = 15000
-            connection.readTimeout = 20000
-            connection.doOutput = true
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
-            connection.setRequestProperty("Authorization", "Bearer ${session.accessToken}")
-            connection.outputStream.use { it.write("{\"userId\":\"$userId\"}".toByteArray(Charsets.UTF_8)) }
-            val status = connection.responseCode
-            if (status !in 200..299) {
-                val errorText = runCatching {
-                    (connection.errorStream ?: connection.inputStream).bufferedReader().use { it.readText() }
-                }.getOrDefault("HTTP $status")
-                error("Delete failed (HTTP $status): $errorText")
-            }
-        } finally {
-            connection.disconnect()
-        }
-    }
-
     suspend fun enterUser(username: String): Profile {
         val clean = username.trim().lowercase()
         require(clean.length in 3..24) { "Username must be 3-24 characters." }
