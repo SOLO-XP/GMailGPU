@@ -501,54 +501,61 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
     }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Your support workspace", onMenu = onMenu)
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = G57Primary.copy(alpha = 0.12f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, G57Primary.copy(alpha = 0.35f))
-        ) {
-            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    AppText("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    AppText("Track driver issues and share logs with developers.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                    val unread = ui.notifications.count { it.readAt == null }
-                    if (unread > 0) AppText("🔔 $unread unread notification${if (unread == 1) "" else "s"}", color = G57Cyan, fontWeight = FontWeight.SemiBold)
-                }
-                Surface(shape = RoundedCornerShape(18.dp), color = G57Card) {
-                    Icon(Icons.Default.BugReport, contentDescription = null, tint = G57Primary, modifier = Modifier.padding(14.dp).size(32.dp))
+        IssueList(
+            issues = ui.issues,
+            onClick = vm::openUserIssue,
+            emptyText = "You have no issues yet.",
+            modifier = Modifier.weight(1f),
+            headerContent = {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = G57Primary.copy(alpha = 0.10f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Primary.copy(alpha = 0.30f))
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            AppText("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            AppText("Track driver issues and share logs with developers.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                            val unread = ui.notifications.count { it.readAt == null }
+                            if (unread > 0) AppText("🔔 $unread unread notification${if (unread == 1) "" else "s"}", color = G57Cyan, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = vm::openCreate,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(vertical = 11.dp)
+                        ) {
+                            Icon(Icons.Default.Add, null)
+                            Spacer(Modifier.width(6.dp))
+                            AppText("CREATE ISSUE", fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(
+                            onClick = { ui.profile?.id?.let(vm::loadUserData) },
+                            enabled = ui.profile != null,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 11.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, null)
+                            Spacer(Modifier.width(6.dp))
+                            AppText("REFRESH")
+                        }
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        StatChip("TOTAL", ui.issues.size)
+                        StatChip("OPEN", ui.issues.count { it.status == "open" })
+                        StatChip("ACTIVE", ui.issues.count { it.status in listOf("investigating", "fix_in_progress", "testing") })
+                        StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
+                    }
+                    AppText("YOUR ISSUES", color = G57Cyan, fontWeight = FontWeight.Bold)
                 }
             }
-        }
-        Button(
-            onClick = vm::openCreate,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            shape = RoundedCornerShape(16.dp),
-            contentPadding = PaddingValues(vertical = 14.dp)
-        ) {
-            Icon(Icons.Default.Add, null)
-            Spacer(Modifier.width(8.dp))
-            AppText("CREATE NEW ISSUE", fontWeight = FontWeight.Bold)
-        }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatChip("TOTAL", ui.issues.size)
-            StatChip("OPEN", ui.issues.count { it.status == "open" })
-            StatChip("ACTIVE", ui.issues.count { it.status in listOf("investigating", "fix_in_progress", "testing") })
-            StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
-        }
-        OutlinedButton(
-            onClick = { ui.profile?.id?.let { vm.loadUserData(it) } },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            enabled = ui.profile != null
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            AppText("REFRESH MY ISSUES")
-        }
-        Spacer(Modifier.height(4.dp))
-        IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.", modifier = Modifier.weight(1f))
+        )
     }
 
     shownNotification?.let { notification ->
@@ -574,49 +581,45 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
     LaunchedEffect(Unit) { vm.loadIssues(true) }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Developer control center", onMenu = onMenu)
-        Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = G57Card,
-            border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
-        ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        AppText("Issue operations", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        AppText("Review evidence, download user files, and reply to reports.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+        IssueList(
+            issues = ui.issues,
+            onClick = vm::openAdminIssue,
+            emptyText = "No issues in Cloud.",
+            modifier = Modifier.weight(1f),
+            headerContent = {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppText("ISSUE OPERATIONS", color = G57Cyan, fontWeight = FontWeight.Bold)
+                    AppText("Review evidence, download user files, and reply to reports.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = vm::openUserManagement, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.ManageAccounts, null)
+                            Spacer(Modifier.width(5.dp))
+                            AppText("USERS")
+                        }
+                        OutlinedButton(onClick = vm::openSolvedUsers, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.Verified, null)
+                            Spacer(Modifier.width(5.dp))
+                            AppText("RESOLVED")
+                        }
+                        OutlinedButton(onClick = { vm.loadIssues(true) }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.Refresh, null)
+                            Spacer(Modifier.width(5.dp))
+                            AppText("REFRESH")
+                        }
                     }
-                    Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = G57Primary, modifier = Modifier.size(32.dp))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = vm::openUserManagement, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.ManageAccounts, contentDescription = null)
-                        Spacer(Modifier.width(5.dp))
-                        AppText("USERS")
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        StatChip("OPEN", ui.issues.count { it.status == "open" })
+                        StatChip("ACTIVE", ui.issues.count { it.status == "investigating" || it.status == "fix_in_progress" })
+                        StatChip("TESTING", ui.issues.count { it.status == "testing" })
+                        StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
                     }
-                    OutlinedButton(onClick = vm::openSolvedUsers, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.Verified, contentDescription = null)
-                        Spacer(Modifier.width(5.dp))
-                        AppText("RESOLVED")
-                    }
-                }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatChip("OPEN", ui.issues.count { it.status == "open" })
-                    StatChip("ACTIVE", ui.issues.count { it.status == "investigating" || it.status == "fix_in_progress" })
-                    StatChip("TESTING", ui.issues.count { it.status == "testing" })
-                    StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
-                }
-                OutlinedButton(
-                    onClick = { vm.loadIssues(true) },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    AppText("REFRESH ALL ISSUES")
+                    AppText("ALL ISSUES", color = G57Cyan, fontWeight = FontWeight.Bold)
                 }
             }
-        }
-        IssueList(ui.issues, vm::openAdminIssue, "No issues in Cloud.", modifier = Modifier.weight(1f))
+        )
     }
 }
 
@@ -1018,7 +1021,8 @@ private fun IssueList(
     issues: List<Issue>,
     onClick: (Issue) -> Unit,
     emptyText: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    headerContent: @Composable () -> Unit = {}
 ) {
     var selectedGroup by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
@@ -1051,11 +1055,12 @@ private fun IssueList(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
+        // Search and filters stay pinned directly below the screen header.
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-            placeholder = { AppText("Search title, game, driver, username, or #issue") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp),
+            placeholder = { AppText("Search issues, game, driver, user, or #") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
             trailingIcon = {
                 if (searchQuery.isNotBlank()) {
@@ -1068,41 +1073,41 @@ private fun IssueList(
             shape = RoundedCornerShape(14.dp)
         )
         Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             groups.forEach { (name, count) ->
                 FilterChip(
                     selected = selectedGroup == name,
                     onClick = { selectedGroup = name },
-                    label = { AppText("$name ($count)") },
-                    leadingIcon = if (selectedGroup == name) {
-                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                    } else null
+                    label = { AppText("$name ($count)") }
                 )
             }
         }
         Divider(color = G57Border.copy(alpha = 0.55f))
-        if (filtered.isEmpty()) {
-            Box(
-                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                AppText(
-                    when {
-                        issues.isEmpty() -> emptyText
-                        searchQuery.isNotBlank() -> "No matching issues. Try another search."
-                        else -> "No issues in ${selectedGroup.lowercase()} yet."
-                    },
-                    color = G57Muted
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item(key = "dashboard-header") { headerContent() }
+            if (filtered.isEmpty()) {
+                item(key = "empty-issues") {
+                    Box(
+                        Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AppText(
+                            when {
+                                issues.isEmpty() -> emptyText
+                                searchQuery.isNotBlank() -> "No matching issues. Try another search."
+                                else -> "No issues in ${selectedGroup.lowercase()} yet."
+                            },
+                            color = G57Muted
+                        )
+                    }
+                }
+            } else {
                 items(filtered, key = { it.id }) { issue -> IssueCard(issue, onClick) }
             }
         }
