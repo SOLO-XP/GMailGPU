@@ -415,6 +415,11 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         update { copy(loading = true, error = null, success = null, uploadProgress = "Preparing diagnostic submission…") }
         val deviceSnapshot = if (s.includeDeviceDiagnostics) DiagnosticCollector.snapshot(getApplication()) else null
         runCatching {
+            val automaticDeviceReport = if (s.includeDeviceDiagnostics) {
+                DiagnosticCollector.createReportFile(getApplication(), includeDeviceDetails = true)
+            } else null
+            val filesToUpload = (s.selectedFiles + listOfNotNull(automaticDeviceReport))
+                .distinctBy { it.name to it.uri }
             val issue = repo.createIssue(
                 CreateIssueInput(
                     userId = s.profile?.id ?: error("Not authenticated"),
@@ -438,7 +443,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                 )
             )
             try {
-                uploadFiles(issue.id, s.selectedFiles)
+                uploadFiles(issue.id, filesToUpload)
                 issue
             } catch (uploadError: Throwable) {
                 runCatching { repo.deleteIssue(issue.id) }
