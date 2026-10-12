@@ -704,8 +704,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                         loading = false,
                         downloadUrl = url,
                         downloadFilename = attachment.filename,
-                        downloadMimeType = attachment.mimeType ?: "application/octet-stream",
-                        success = "Download started: ${attachment.filename}"
+                        downloadMimeType = attachment.mimeType ?: "application/octet-stream"
                     )
                 }
             }
@@ -747,8 +746,16 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
 
     fun logout() = viewModelScope.launch {
         if (SupabaseProvider.enabled) runCatching { repo.signOut() }
-        val savedTheme = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0).getString("theme_choice", "Violet") ?: "Violet"
-        _ui.value = UiState(themeChoice = savedTheme)
+        val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+        val savedTheme = prefs.getString("theme_choice", "Violet") ?: "Violet"
+        val savedLanguage = prefs.getString("app_language", "en") ?: "en"
+        _ui.value = UiState(
+            themeChoice = savedTheme,
+            appLanguage = savedLanguage,
+            includeDeviceDiagnostics = prefs.getBoolean("include_device_diagnostics", true),
+            collectAppLogsEnabled = prefs.getBoolean("collect_app_logs", false),
+            redactSensitiveLogs = prefs.getBoolean("redact_sensitive_logs", true)
+        )
     }
 
     private fun updateIssueInMemory(issueId: String, status: String) {
