@@ -328,33 +328,6 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     fun openSolvedUsers() = update { copy(screen = ScreenState.AdminSolvedUsers, error = null) }
     fun openUserManagement() = update { copy(screen = ScreenState.AdminUserManagement, error = null, success = null) }
 
-    fun deleteUser(profile: Profile) = viewModelScope.launch {
-        if (profile.id == _ui.value.profile?.id) {
-            update { copy(error = "You cannot delete the account you are currently using.") }
-            return@launch
-        }
-        if (profile.role == "admin") {
-            update { copy(error = "Admin accounts cannot be deleted from this screen.") }
-            return@launch
-        }
-        update { copy(loading = true, error = null, success = null) }
-        runCatching { repo.deleteAuthUser(profile.id) }
-            .onSuccess {
-                update {
-                    copy(
-                        loading = false,
-                        userProfiles = userProfiles.filterNot { it.id == profile.id },
-                        issues = issues.filterNot { it.userId == profile.id },
-                        success = "Deleted ${profile.username} and their linked cloud data."
-                    )
-                }
-                loadIssues(true)
-            }
-            .onFailure { e ->
-                update { copy(loading = false, error = e.message ?: "Could not delete this user. Deploy the admin-delete-user Supabase function first.") }
-            }
-    }
-
     fun loadSolvedUsers() = viewModelScope.launch {
         if (!SupabaseProvider.enabled) {
             update { copy(resolvedUsers = listOf(ResolvedUser("demo-user", 2, 481, "Black textures in Call of Duty"))) }
