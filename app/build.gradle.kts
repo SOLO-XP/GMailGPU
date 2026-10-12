@@ -24,7 +24,7 @@ android {
         applicationId = "com.g57.issuehub"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
+        versionCode = 14
         versionName = "0.3-beta"
 
         val sbUrl = localProperties.getProperty("SUPABASE_URL", System.getenv("SUPABASE_URL") ?: "")
