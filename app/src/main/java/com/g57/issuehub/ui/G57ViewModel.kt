@@ -49,6 +49,7 @@ data class ResolvedUser(
 data class UiState(
     val screen: ScreenState = ScreenState.Login,
     val themeChoice: String = "Violet",
+    val appLanguage: String = "en",
     val includeDeviceDiagnostics: Boolean = true,
     val collectAppLogsEnabled: Boolean = false,
     val redactSensitiveLogs: Boolean = true,
@@ -97,6 +98,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         val snapshot = DiagnosticCollector.snapshot(getApplication())
         _ui.value = _ui.value.copy(
             themeChoice = prefs.getString("theme_choice", "Violet") ?: "Violet",
+            appLanguage = prefs.getString("app_language", "en") ?: "en",
             includeDeviceDiagnostics = prefs.getBoolean("include_device_diagnostics", true),
             collectAppLogsEnabled = prefs.getBoolean("collect_app_logs", false),
             redactSensitiveLogs = prefs.getBoolean("redact_sensitive_logs", true),
@@ -154,6 +156,14 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun setProblemType(v: String) = update { copy(problemType = v) }
+
+    fun setAppLanguage(language: String) {
+        val supported = setOf("en", "ar", "pt-BR")
+        val selected = language.takeIf { it in supported } ?: "en"
+        getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+            .edit().putString("app_language", selected).apply()
+        update { copy(appLanguage = selected) }
+    }
 
     fun login() = viewModelScope.launch {
         val u = _ui.value.username.trim()
