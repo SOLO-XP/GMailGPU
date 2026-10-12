@@ -9,7 +9,7 @@
   <img alt="Language" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Backend" src="https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase&logoColor=white">
   <img alt="GPU families" src="https://img.shields.io/badge/Mali-G57%20%7C%20G52%20%7C%20G615%20%7C%20G720-111827">
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.2%20Beta-00B8D9">
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.3%20Beta-00B8D9">
 </p>
 
 **GMailGPU** is an early-beta Android community app for reporting Mali GPU driver and Winlator/GameHub compatibility issues. It helps users submit reproducible bug reports, attach diagnostic evidence, communicate with developers, and find community driver projects for **Mali-G57, G52, G615, and G720**.
