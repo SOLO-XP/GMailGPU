@@ -89,7 +89,7 @@ jobs:
 
           echo "Checking package name and version..."
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
-          grep -F "package: name='com.g57.issuehub' versionCode='14' versionName='0.3-beta'" apk-badging.txt
+          grep -F "package: name='com.g57.issuehub' versionCode='15' versionName='0.3-beta'" apk-badging.txt
 
           sha256sum "$APK" | tee app-debug.apk.sha256
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
@@ -97,7 +97,7 @@ jobs:
             echo "### Verified GMailGPU APK"
             echo ""
             echo "- Package: com.g57.issuehub"
-            echo "- Version: 0.3-beta (14)"
+            echo "- Version: 0.3-beta (15)"
             echo "- APK size: $(stat -c '%s bytes' "$APK")"
             echo "- SHA-256: $SHA256"
             echo "- ZIP structure: passed"
