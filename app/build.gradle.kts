@@ -38,6 +38,27 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        create("stableUpdate") {
+            val keystorePath = System.getenv("ANDROID_KEYSTORE_FILE")
+            if (!keystorePath.isNullOrBlank()) {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("debug") {
+            // Use one private key for every CI APK so Android can update the existing install.
+            if (!System.getenv("ANDROID_KEYSTORE_FILE").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("stableUpdate")
+            }
+        }
+    }
+
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
