@@ -5,6 +5,8 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Process
+import android.os.Environment
+import android.os.StatFs
 import com.g57.issuehub.BuildConfig
 import java.io.File
 import java.util.Locale
@@ -18,7 +20,21 @@ data class DeviceSnapshot(
     val gpu: String,
     val appVersion: String,
     val totalRamMb: Long?,
-    val availableRamMb: Long?
+    val availableRamMb: Long?,
+    val supportedAbis: String,
+    val cpuCores: Int,
+    val kernelVersion: String,
+    val buildFingerprint: String,
+    val securityPatch: String,
+    val board: String,
+    val hardware: String,
+    val deviceCode: String,
+    val product: String,
+    val bootloader: String,
+    val screenResolution: String,
+    val screenDensity: String,
+    val dataStorageTotalMb: Long?,
+    val dataStorageFreeMb: Long?
 ) {
     fun asReport(): String = buildString {
         appendLine("GMailGPU Smart Diagnostic Report")
@@ -30,6 +46,20 @@ data class DeviceSnapshot(
         appendLine("GPU: $gpu")
         appendLine("RAM total: ${totalRamMb?.let { "$it MB" } ?: "Not available"}")
         appendLine("RAM available: ${availableRamMb?.let { "$it MB" } ?: "Not available"}")
+        appendLine("CPU cores: $cpuCores")
+        appendLine("Supported ABIs: $supportedAbis")
+        appendLine("Kernel: $kernelVersion")
+        appendLine("Security patch: $securityPatch")
+        appendLine("Build fingerprint: $buildFingerprint")
+        appendLine("Board: $board")
+        appendLine("Hardware: $hardware")
+        appendLine("Device code: $deviceCode")
+        appendLine("Product: $product")
+        appendLine("Bootloader: $bootloader")
+        appendLine("Screen resolution: $screenResolution")
+        appendLine("Screen density: $screenDensity")
+        appendLine("Data storage total: ${dataStorageTotalMb?.let { "$it MB" } ?: "Not available"}")
+        appendLine("Data storage free: ${dataStorageFreeMb?.let { "$it MB" } ?: "Not available"}")
         appendLine()
         appendLine("Environment versions not exposed by Android are left for the reporter to fill in:")
         appendLine("- Emulator (Winlator/GameHub):")
@@ -66,6 +96,11 @@ object DiagnosticCollector {
             val versionCode = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
             "${info.versionName ?: "unknown"} ($versionCode)"
         }.getOrDefault("unknown")
+        val display = context.resources.displayMetrics
+        val storage = runCatching { StatFs(Environment.getDataDirectory().absolutePath) }.getOrNull()
+        val storageTotalMb = storage?.let { (it.blockCountLong * it.blockSizeLong) / (1024L * 1024L) }
+        val storageFreeMb = storage?.let { (it.availableBlocksLong * it.blockSizeLong) / (1024L * 1024L) }
+        val kernel = runCatching { System.getProperty("os.version") }.getOrNull().orEmpty().ifBlank { "Not available" }
         return DeviceSnapshot(
             manufacturer = Build.MANUFACTURER.ifBlank { "Unknown" },
             model = Build.MODEL.ifBlank { Build.DEVICE.ifBlank { "Unknown" } },
@@ -74,7 +109,21 @@ object DiagnosticCollector {
             gpu = gpu,
             appVersion = version,
             totalRamMb = totalMb,
-            availableRamMb = availableMb
+            availableRamMb = availableMb,
+            supportedAbis = Build.SUPPORTED_ABIS?.joinToString(", ") ?: "Not exposed",
+            cpuCores = Runtime.getRuntime().availableProcessors(),
+            kernelVersion = kernel,
+            buildFingerprint = Build.FINGERPRINT.ifBlank { "Not exposed" },
+            securityPatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Build.VERSION.SECURITY_PATCH else "Not exposed",
+            board = Build.BOARD.ifBlank { "Not exposed" },
+            hardware = Build.HARDWARE.ifBlank { "Not exposed" },
+            deviceCode = Build.DEVICE.ifBlank { "Not exposed" },
+            product = Build.PRODUCT.ifBlank { "Not exposed" },
+            bootloader = Build.BOOTLOADER.ifBlank { "Not exposed" },
+            screenResolution = "${display.widthPixels}x${display.heightPixels}",
+            screenDensity = "${display.densityDpi} dpi (scale ${display.density})",
+            dataStorageTotalMb = storageTotalMb,
+            dataStorageFreeMb = storageFreeMb
         )
     }
 
