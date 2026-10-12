@@ -17,6 +17,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import java.net.HttpURLConnection
+import java.net.URL
 
 sealed interface ScreenState {
     data object Login : ScreenState
@@ -55,6 +57,8 @@ data class UiState(
     val collectAppLogsEnabled: Boolean = false,
     val redactSensitiveLogs: Boolean = true,
     val uploadProgress: String? = null,
+    val attachmentPreviewName: String? = null,
+    val attachmentPreviewText: String? = null,
     val username: String = "",
     val password: String = "",
     val loginRole: String = "user",
@@ -632,19 +636,60 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
             .onFailure { e -> update { copy(loading = false, error = e.message ?: "Delete failed") } }
     }
 
-    fun openAttachment(path: String) = viewModelScope.launch {
+    fun openAttachment(attachment: Attachment) = viewModelScope.launch {
         if (!SupabaseProvider.enabled) return@launch
-        runCatching { repo.signedUrl(path) }
-            .onSuccess { url -> update { copy(openUrl = url) } }
-            .onFailure { e ->
-                update {
-                    copy(
-                        error = "Couldn't create a secure download link for this attachment. Confirm that your admin account has role=admin and run supabase_fix_attachment_access.sql in the Supabase SQL Editor. Details: ${e.message ?: "storage access denied"}"
-                    )
+        update { copy(loading = true, error = null, attachmentPreviewName = null, attachmentPreviewText = null) }
+        runCatching {
+            val url = repo.signedUrl(attachment.storagePath)
+            val lowerName = attachment.filename.lowercase(Locale.ROOT)
+            val isReadableLog = attachment.type == "log" &&
+                (lowerName.endsWith(".log") || lowerName.endsWith(".txt") ||
+                 lowerName.endsWith(".json") || lowerName.endsWith(".xml") ||
+                 lowerName.endsWith(".csv") || attachment.mimeType.orEmpty().startsWith("text/"))
+            if (!isReadableLog) return@runCatching url to null
+            val preview = withContext(Dispatchers.IO) {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                try {
+                    connection.connectTimeout = 15000
+                    connection.readTimeout = 20000
+                    connection.inputStream.use { input ->
+                        val output = java.io.ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        var remaining = 300_000
+                        while (remaining > 0) {
+                            val count = input.read(buffer, 0, minOf(buffer.size, remaining))
+                            if (count <= 0) break
+                            output.write(buffer, 0, count)
+                            remaining -= count
+                        }
+                        output.toString(Charsets.UTF_8.name())
+                    }
+                } finally {
+                    connection.disconnect()
                 }
             }
+            url to preview
+        }.onSuccess { (url, preview) ->
+            update {
+                copy(
+                    loading = false,
+                    openUrl = if (preview == null) url else null,
+                    attachmentPreviewName = if (preview == null) null else attachment.filename,
+                    attachmentPreviewText = preview?.let { if (it.length > 12000) it.take(12000) + "\n\n[Preview shortened. Open the file externally for the rest.]" else it },
+                    error = null
+                )
+            }
+        }.onFailure { e ->
+            update {
+                copy(
+                    loading = false,
+                    error = "Could not open attachment. Confirm the admin role and run supabase_fix_attachment_access.sql in Supabase SQL Editor. Details: ${e.message ?: "storage access denied"}"
+                )
+            }
+        }
     }
 
+    fun closeAttachmentPreview() = update { copy(attachmentPreviewName = null, attachmentPreviewText = null) }
     fun clearOpenUrl() = update { copy(openUrl = null) }
 
     fun markNotificationRead(notification: Notification) = viewModelScope.launch {
