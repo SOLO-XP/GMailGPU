@@ -37,7 +37,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.g57.issuehub.data.Attachment
 import com.g57.issuehub.data.Issue
 import com.g57.issuehub.data.Notification
-import com.g57.issuehub.data.Profile
 import com.g57.issuehub.ui.*
 import java.util.Locale
 
@@ -344,16 +343,6 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
                     AppText("GMailGPU", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = G57Primary)
                     AppText("MALI GPU • WINLATOR ISSUE HUB", color = G57Cyan, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                     AppText("G57 · G52 · G615 · G720", color = G57Muted, style = MaterialTheme.typography.bodyMedium)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("en" to "English", "ar" to "العربية", "pt-BR" to "PT-BR").forEach { (code, label) ->
-                            FilterChip(
-                                selected = ui.appLanguage == code,
-                                onClick = { vm.setAppLanguage(code) },
-                                label = { AppText(label) },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
                     Divider(color = G57Border)
                     AppText("Welcome back", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     AppText("Choose your access type to continue.", color = G57Muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -654,9 +643,15 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            AppText("APP LANGUAGE", color = G57Cyan, fontWeight = FontWeight.Bold)
-            AppText("Choose English, Arabic, or Brazilian Portuguese. This preference is saved on this device and controls the automatic chat-translation target.", color = G57Muted)
-            listOf("en" to "English", "ar" to "العربية", "pt-BR" to "Português (Brasil)").forEach { (code, label) ->
+            AppText("APP LANGUAGE & TRANSLATION", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Choose the language for the app and chat translations. Use your device language to follow Android's default language automatically.", color = G57Muted)
+            AppText("First-time translation can take a little while because the language model may need to download. Please wait; the original message stays visible.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            listOf(
+                "system" to "Use device language (automatic)",
+                "en" to "English",
+                "ar" to "العربية",
+                "pt-BR" to "Português (Brasil)"
+            ).forEach { (code, label) ->
                 Card(
                     onClick = { vm.setAppLanguage(code) },
                     colors = CardDefaults.cardColors(containerColor = G57Card),
@@ -844,12 +839,11 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
 
 @Composable
 private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
-    var selectedUser by remember { mutableStateOf<Profile?>(null) }
     LaunchedEffect(Unit) { vm.loadUsers(); vm.loadIssues(true) }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("USER MANAGEMENT") { vm.back() }
         AppText(
-            "Registered profiles • deleting a user removes their linked issues and notifications.",
+            "Registered profiles • view-only access. Developers can inspect profiles but cannot delete users.",
             color = G57Muted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -886,37 +880,11 @@ private fun AdminUserManagementScreen(ui: UiState, vm: G57ViewModel) {
                                     profile.createdAt?.let { AppText("Created: ${it.take(10)}", color = G57Muted, style = MaterialTheme.typography.bodySmall) }
                                 }
                             }
-                            if (profile.role != "admin" && profile.id != ui.profile?.id) {
-                                Spacer(Modifier.height(10.dp))
-                                OutlinedButton(
-                                    onClick = { selectedUser = profile },
-                                    enabled = !ui.loading,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                                ) {
-                                    Icon(Icons.Default.DeleteForever, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    AppText("DELETE USER")
-                                }
-                            }
                         }
                     }
                 }
             }
         }
-    }
-    selectedUser?.let { profile ->
-        AlertDialog(
-            onDismissRequest = { selectedUser = null },
-            title = { AppText("Delete ${profile.username}?") },
-            text = { AppText("This permanently deletes the Auth account, profile, issues, attachments metadata and notifications. This cannot be undone.") },
-            confirmButton = {
-                TextButton(onClick = { selectedUser = null; vm.deleteUser(profile) }, enabled = !ui.loading) {
-                    AppText("DELETE", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { selectedUser = null }) { AppText("CANCEL") } }
-        )
     }
 }
 
