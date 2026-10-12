@@ -30,6 +30,9 @@
 - 🛡️ **Privacy & File Controls** for optional device details, log collection, and best-effort redaction of common sensitive values.
 - 🌐 **Language options** for device-language automatic mode, English, Arabic, and Portuguese (Brazil). Automatic mode maps supported device languages to the app's available language options. Translation models may need to download over the network; if translation is unavailable, some text may remain in English.
 - 🎨 **Updated dashboard layout** with more compact admin actions and issue lists that scroll naturally.
+- 🔄 **In-app update checker** — checks the latest published GitHub Release, downloads an attached APK when a newer version is detected, and opens Android’s installer. You must approve installation; Android may require permission to install unknown apps. Updates require a compatible package signature.
+- 🔔 **Issue status notifications** — in-app notification when an issue status changes to Fixed/Closed.
+- 🕶️ **Sensitive admin screen protection** — Android screenshot/screen-capture protection is enabled on the admin user-management and resolved-users screens to reduce accidental exposure of usernames. This is not a guarantee against every form of capture or disclosure.
 - 🔗 **Mali Driver Developers** menu with links to community driver repositories.
 
 ## 📲 Install and update
