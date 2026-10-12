@@ -166,7 +166,8 @@ fun G57App(vm: G57ViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(ui.appLanguage) {
+    LaunchedEffect(ui.appLanguage, deviceLanguage, resolvedLanguage) {
+        // Re-run whenever the user changes the language or Android's device locale changes.
         val target = when (resolvedLanguage) {
             "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
             "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
@@ -590,22 +591,34 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppText("ISSUE OPERATIONS", color = G57Cyan, fontWeight = FontWeight.Bold)
                     AppText("Review evidence, download user files, and reply to reports.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = vm::openUserManagement, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.ManageAccounts, null)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = vm::openUserManagement,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.ManageAccounts, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(5.dp))
-                            AppText("USERS")
+                            AppText("USERS", maxLines = 1)
                         }
-                        OutlinedButton(onClick = vm::openSolvedUsers, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Verified, null)
+                        OutlinedButton(
+                            onClick = vm::openSolvedUsers,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.Verified, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(5.dp))
-                            AppText("RESOLVED")
+                            AppText("RESOLVED", maxLines = 1)
                         }
-                        OutlinedButton(onClick = { vm.loadIssues(true) }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Refresh, null)
-                            Spacer(Modifier.width(5.dp))
-                            AppText("REFRESH")
-                        }
+                    }
+                    OutlinedButton(
+                        onClick = { vm.loadIssues(true) },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 10.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        AppText("REFRESH", maxLines = 1)
                     }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
