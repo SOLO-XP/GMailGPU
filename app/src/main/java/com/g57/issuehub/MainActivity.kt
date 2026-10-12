@@ -1039,7 +1039,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             if (ui.attachments.isEmpty()) {
                 AppText("No attachments.", color = G57Muted)
             } else {
-                ui.attachments.forEach { attachment -> AttachmentRow(attachment) { vm.openAttachment(attachment.storagePath) } }
+                ui.attachments.forEach { attachment -> AttachmentRow(attachment) { vm.openAttachment(attachment) } }
             }
 
             if (!admin) {
@@ -1172,6 +1172,31 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             }
             Spacer(Modifier.height(24.dp))
         }
+    }
+
+    if (ui.attachmentPreviewText != null) {
+        AlertDialog(
+            onDismissRequest = vm::closeAttachmentPreview,
+            title = { AppText(ui.attachmentPreviewName ?: "Log preview", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    AppText(
+                        ui.attachmentPreviewText.orEmpty(),
+                        color = G57Text,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = vm::closeAttachmentPreview) { AppText("CLOSE") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    ui.attachments.firstOrNull { it.filename == ui.attachmentPreviewName }?.let(vm::openAttachment)
+                    vm.closeAttachmentPreview()
+                }) { AppText("OPEN FILE") }
+            }
+        )
     }
 
     if (showDelete) {
