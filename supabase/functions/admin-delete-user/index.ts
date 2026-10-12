@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const OWNER_UID = "8889b1a6-7dbd-4d42-9dcc-b231ddd0c5f2";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
@@ -34,14 +36,9 @@ Deno.serve(async (request) => {
       return Response.json({ error: "Invalid or expired session" }, { status: 401, headers: corsHeaders });
     }
 
-    const { data: callerProfile, error: profileError } = await adminClient
-      .from("profiles")
-      .select("role")
-      .eq("id", caller.id)
-      .single();
-
-    if (profileError || callerProfile?.role !== "admin") {
-      return Response.json({ error: "Admin access required" }, { status: 403, headers: corsHeaders });
+    // Only the fixed owner account may delete user accounts. Admin role alone is not enough.
+    if (caller.id !== OWNER_UID) {
+      return Response.json({ error: "Forbidden: owner account only" }, { status: 403, headers: corsHeaders });
     }
 
     const body = await request.json().catch(() => ({}));
