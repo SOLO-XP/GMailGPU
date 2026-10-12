@@ -66,6 +66,26 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Configure stable update signing key (optional)
+        shell: bash
+        env:
+          GMAILGPU_KEYSTORE_BASE64: ${{ secrets.GMAILGPU_KEYSTORE_BASE64 }}
+          GMAILGPU_KEYSTORE_PASSWORD: ${{ secrets.GMAILGPU_KEYSTORE_PASSWORD }}
+          GMAILGPU_KEY_ALIAS: ${{ secrets.GMAILGPU_KEY_ALIAS }}
+          GMAILGPU_KEY_PASSWORD: ${{ secrets.GMAILGPU_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${GMAILGPU_KEYSTORE_BASE64:-}" ]; then
+            printf '%s' "$GMAILGPU_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/gmailgpu-signing.jks"
+            echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/gmailgpu-signing.jks" >> "$GITHUB_ENV"
+            echo "ANDROID_KEYSTORE_PASSWORD=$GMAILGPU_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_ALIAS=$GMAILGPU_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ANDROID_KEY_PASSWORD=$GMAILGPU_KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "Stable APK signing key configured."
+          else
+            echo "::warning::Stable signing secrets are not configured. This build will use the runner's temporary debug key, and in-place updates across builds may fail."
+          fi
+
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
