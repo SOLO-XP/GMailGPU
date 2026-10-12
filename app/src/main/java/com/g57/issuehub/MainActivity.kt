@@ -1,7 +1,9 @@
 package com.g57.issuehub
 
 import android.content.Intent
+import android.app.Activity
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -117,8 +119,8 @@ private fun g57Palette(choice: String): G57Palette = when (choice) {
     "Emerald" -> G57Palette(Color(0xFF071A14), Color(0xFF102B20), Color(0xFF4ED6A0), Color(0xFF9AF5CB), Color(0xFFE9FFF5), Color(0xFF96BDAA), Color(0xFF285641))
     "Amber" -> G57Palette(Color(0xFF1B1408), Color(0xFF302312), Color(0xFFFFBD59), Color(0xFFFFDE9A), Color(0xFFFFF7E8), Color(0xFFC6B28F), Color(0xFF5B4528))
     "Rose" -> G57Palette(Color(0xFF1D0B14), Color(0xFF321321), Color(0xFFFF78AC), Color(0xFFFFB6D0), Color(0xFFFFF0F6), Color(0xFFC8A0B1), Color(0xFF633047))
-    "Light" -> G57Palette(Color(0xFFF3F5FA), Color(0xFFFFFFFF), Color(0xFF6750A4), Color(0xFF356A9A), Color(0xFF171923), Color(0xFF5E6573), Color(0xFFD8DDE7), light = true)
-    else -> G57Palette(Color(0xFF080A0F), Color(0xFF121722), Color(0xFF9B7BFF), Color(0xFF62D9FF), Color(0xFFF5F7FB), Color(0xFF9AA4B5), Color(0xFF303746))
+    "Light", "Violet" -> G57Palette(Color(0xFFF4F6FF), Color(0xFFFFFFFF), Color(0xFF6D4AFF), Color(0xFF008DB8), Color(0xFF171A2B), Color(0xFF626B80), Color(0xFFDCE1F0), light = true)
+    else -> G57Palette(Color(0xFFF4F6FF), Color(0xFFFFFFFF), Color(0xFF6D4AFF), Color(0xFF008DB8), Color(0xFF171A2B), Color(0xFF626B80), Color(0xFFDCE1F0), light = true)
 }
 
 @Composable
@@ -127,6 +129,25 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     val context = LocalContext.current
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // Hide only screens that reveal registered/resolved usernames. Other app screens
+    // continue to allow screenshots, including screenshots of images and issue evidence.
+    DisposableEffect(context, ui.screen) {
+        val window = (context as? Activity)?.window
+        val sensitiveScreen = ui.screen == ScreenState.AdminUserManagement ||
+            ui.screen == ScreenState.AdminSolvedUsers
+        if (sensitiveScreen) {
+            window?.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
 
     LaunchedEffect(ui.appLanguage) {
         val target = when (resolveAppLanguage(ui.appLanguage)) {
