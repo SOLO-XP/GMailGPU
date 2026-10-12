@@ -52,7 +52,7 @@ data class ResolvedUser(
 data class UiState(
     val screen: ScreenState = ScreenState.Login,
     val themeChoice: String = "Violet",
-    val appLanguage: String = "en",
+    val appLanguage: String = "system",
     val includeDeviceDiagnostics: Boolean = true,
     val collectAppLogsEnabled: Boolean = false,
     val redactSensitiveLogs: Boolean = true,
@@ -721,7 +721,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         if (SupabaseProvider.enabled) runCatching { repo.signOut() }
         val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
         val savedTheme = prefs.getString("theme_choice", "Violet") ?: "Violet"
-        val savedLanguage = prefs.getString("app_language", "en") ?: "en"
+        val savedLanguage = prefs.getString("app_language", "system") ?: "system"
         _ui.value = UiState(
             themeChoice = savedTheme,
             appLanguage = savedLanguage,
