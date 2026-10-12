@@ -410,8 +410,14 @@ private fun HelpScreen(vm: G57ViewModel) {
         ) {
             HelpStep("1. Create your account", "Choose USER, enter a unique username and a password with at least 8 characters, then tap CREATE ACCOUNT. Use SIGN IN for an existing account.")
             HelpStep("2. Open a new issue", "Tap CREATE ISSUE and enter the game, issue title, and a clear description. Write the title and description in English.")
-            HelpStep("3. Attach required evidence", "Attach at least one diagnostic log file OR one video showing the problem. Images alone are not enough. The app blocks submission until a log or video is selected.")
-            HelpStep("4. Submit and track", "Tap SUBMIT ISSUE and wait for confirmation. Open Your issues to check the status and details.")
+            HelpStep("3. Find Winlator logs", "Open your phone's Files app, choose Internal storage, then open winlator and logs. The common full path is /storage/emulated/0/winlator/logs. If your Winlator setup stores logs elsewhere, choose its actual logs folder.")
+            LogFolderIllustration()
+            HelpStep("4. Attach logs or a video", "In CREATE ISSUE, tap Logs, browse to the logs folder shown above, select the newest relevant .log or .txt file, then tap Open/Use this file. You can attach a video instead. Screenshots alone are not enough.")
+            LogUploadIllustration()
+            HelpStep("5. Submit and track", "Tap SUBMIT ISSUE and wait for confirmation. When device diagnostics are enabled, GMailGPU also attaches a detailed device report automatically.")
+            HelpStep("6. Talk to the developer", "Open your issue, scroll to the chat section, write a message, and tap SEND MESSAGE. Tap REFRESH CHAT to check for replies.")
+            HelpStep("7. Add missing files later", "Inside your issue, use ADD MORE FILES and UPLOAD FILES TO THIS ISSUE to send extra logs, videos, or screenshots.")
+            HelpStep("8. Protect your account", "Keep your password safe. Use Sign out from the side menu when you want to end your session.")
             HelpStep("5. Talk to the developer", "Open your issue, scroll to the chat section, write a message, and tap SEND MESSAGE. Tap REFRESH CHAT to check for replies.")
             HelpStep("6. Add missing files later", "Inside your issue, use ADD MORE FILES and UPLOAD FILES TO THIS ISSUE to send extra logs, videos, or screenshots.")
             HelpStep("7. Protect your account", "Keep your password safe. Use Sign out from the side menu when you want to end your session.")
@@ -419,6 +425,85 @@ private fun HelpScreen(vm: G57ViewModel) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 AppText("CREATE ISSUE")
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogFolderIllustration() {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = G57Card),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    AppText("FILE MANAGER • FOLDER GUIDE", color = G57Cyan, fontWeight = FontWeight.Bold)
+                    AppText("Example location — your phone may differ", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Surface(color = G57Bg, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Smartphone, contentDescription = null, tint = G57Muted)
+                        Spacer(Modifier.width(8.dp))
+                        AppText("Internal storage", fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(12.dp))
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = G57Muted)
+                        Icon(Icons.Default.Folder, contentDescription = null, tint = G57Cyan)
+                        Spacer(Modifier.width(8.dp))
+                        AppText("winlator")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(24.dp))
+                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = G57Muted)
+                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = G57Primary)
+                        Spacer(Modifier.width(8.dp))
+                        AppText("logs", fontWeight = FontWeight.Bold, color = G57Primary)
+                    }
+                    Divider(color = G57Border)
+                    AppText("/storage/emulated/0/winlator/logs", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            AppText("Open this folder in the Android file picker, select a .log or .txt file, and confirm. If the folder is missing, run the game once in Winlator or use Winlator's own log-export option.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun LogUploadIllustration() {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = G57Card),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Description, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(28.dp))
+                Spacer(Modifier.width(10.dp))
+                AppText("WHAT TO TAP", color = G57Cyan, fontWeight = FontWeight.Bold)
+            }
+            listOf(
+                "1" to ("Logs" to "Choose a .log or .txt file"),
+                "2" to ("Open / Use this file" to "Confirm the selection"),
+                "3" to ("SUBMIT ISSUE" to "Wait until upload completes")
+            ).forEach { (number, pair) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(color = G57Primary, shape = RoundedCornerShape(10.dp), modifier = Modifier.size(34.dp)) {
+                        Box(contentAlignment = Alignment.Center) { AppText(number, color = Color(0xFF080A0F), fontWeight = FontWeight.ExtraBold) }
+                    }
+                    Column(Modifier.weight(1f)) {
+                        AppText(pair.first, fontWeight = FontWeight.SemiBold)
+                        AppText(pair.second, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = G57Cyan)
+                }
             }
         }
     }
@@ -871,7 +956,8 @@ private fun CreateIssueScreen(ui: UiState, vm: G57ViewModel) {
                     AppText("COLLECT LOGS")
                 }
             }
-            AppText("Generated files are added to the attachment list so you can review and remove them before upload. App logcat collection is controlled in Settings.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            AppText("Device diagnostics are attached automatically at submission when enabled in Settings. To add Winlator logs, open Files → Internal storage → winlator → logs, then select a .log or .txt file. Common path: /storage/emulated/0/winlator/logs. Generated files can also be added here for review.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            LogFolderIllustration()
             if (ui.selectedFiles.isNotEmpty()) {
                 OutlinedButton(onClick = vm::clearSelectedFiles, enabled = !ui.loading, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Default.DeleteSweep, contentDescription = null)
