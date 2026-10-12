@@ -2,6 +2,9 @@
 -- Run this once in Supabase Dashboard -> SQL Editor -> New query.
 -- Keeps issue-files private while allowing only the issue owner and admins to read/download files.
 
+alter table public.attachments enable row level security;
+alter table storage.objects enable row level security;
+
 grant usage on schema public to authenticated;
 grant select on public.issues to authenticated;
 grant select, insert, delete on public.attachments to authenticated;
