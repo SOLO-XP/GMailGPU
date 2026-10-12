@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -115,7 +116,7 @@ fun AppUpdateSection(
             ) {
                 if (working) {
                     CircularProgressIndicator(
-                        modifier = Modifier,
+                        modifier = Modifier.size(18.dp),
                         color = MaterialTheme.colorScheme.onPrimary,
                         strokeWidth = 2.dp
                     )
@@ -186,7 +187,7 @@ private fun downloadApk(url: String, cacheDir: File): File {
 
 private fun isReleaseNewer(remoteTag: String, currentVersion: String): Boolean {
     fun numbers(value: String): List<Int> =
-        Regex("""\\d+""").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
+        Regex("""\d+""").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
             .let { it + List((3 - it.size).coerceAtLeast(0)) { 0 } }
 
     val remote = numbers(remoteTag)
