@@ -93,7 +93,7 @@ internal fun AutoTranslatedMessage(
                     "pt-BR" -> "Português (Brasil)"
                     else -> "English"
                 }
-                Text(
+                AppText(
                     "Translation · $targetLabel",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
@@ -101,14 +101,14 @@ internal fun AutoTranslatedMessage(
                 Text(translated!!, style = MaterialTheme.typography.bodyMedium)
             }
             translationStatus == "translating" -> {
-                Text(
+                AppText(
                     "Translating…",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             translationStatus == "unavailable" -> {
-                Text(
+                AppText(
                     "Translation unavailable · original shown",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
