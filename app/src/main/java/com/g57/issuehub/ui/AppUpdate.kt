@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.Button
@@ -56,7 +57,7 @@ fun AppUpdateSection(
         border = androidx.compose.foundation.BorderStroke(1.dp, border)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().androidxPadding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("APP UPDATES", color = accent, style = MaterialTheme.typography.titleMedium)
@@ -201,8 +202,3 @@ private fun isReleaseNewer(remoteTag: String, currentVersion: String): Boolean {
     return remoteHotfix && !currentHotfix
 }
 
-private fun Modifier.androidxPadding(all: androidx.compose.ui.unit.Dp): Modifier =
-    this.then(Modifier.paddingCompat(all))
-
-private fun Modifier.paddingCompat(all: androidx.compose.ui.unit.Dp): Modifier =
-    androidx.compose.foundation.layout.padding(all)
