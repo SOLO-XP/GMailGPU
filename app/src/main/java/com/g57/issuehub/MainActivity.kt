@@ -522,7 +522,25 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             AppText("CREATE NEW ISSUE", fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            StatChip("TOTAL", ui.issues.size)
+            StatChip("OPEN", ui.issues.count { it.status == "open" })
+            StatChip("ACTIVE", ui.issues.count { it.status in listOf("investigating", "fix_in_progress", "testing") })
+            StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
+        }
+        OutlinedButton(
+            onClick = { ui.profile?.id?.let { vm.loadUserData(it) } },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            enabled = ui.profile != null
+        ) {
+            Icon(Icons.Default.Refresh, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            AppText("REFRESH MY ISSUES")
+        }
+        Spacer(Modifier.height(4.dp))
         IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.")
     }
 
@@ -580,6 +598,14 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                     StatChip("ACTIVE", ui.issues.count { it.status == "investigating" || it.status == "fix_in_progress" })
                     StatChip("TESTING", ui.issues.count { it.status == "testing" })
                     StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
+                }
+                OutlinedButton(
+                    onClick = { vm.loadIssues(true) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    AppText("REFRESH ALL ISSUES")
                 }
             }
         }
