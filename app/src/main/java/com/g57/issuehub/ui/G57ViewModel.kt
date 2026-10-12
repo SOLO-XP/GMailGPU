@@ -636,7 +636,13 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         if (!SupabaseProvider.enabled) return@launch
         runCatching { repo.signedUrl(path) }
             .onSuccess { url -> update { copy(openUrl = url) } }
-            .onFailure { e -> update { copy(error = e.message) } }
+            .onFailure { e ->
+                update {
+                    copy(
+                        error = "Couldn't create a secure download link for this attachment. Confirm that your admin account has role=admin and run supabase_fix_attachment_access.sql in the Supabase SQL Editor. Details: ${e.message ?: "storage access denied"}"
+                    )
+                }
+            }
     }
 
     fun clearOpenUrl() = update { copy(openUrl = null) }
