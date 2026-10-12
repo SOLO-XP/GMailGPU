@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 sealed interface ScreenState {
     data object Login : ScreenState
@@ -98,7 +99,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         val snapshot = DiagnosticCollector.snapshot(getApplication())
         _ui.value = _ui.value.copy(
             themeChoice = prefs.getString("theme_choice", "Violet") ?: "Violet",
-            appLanguage = prefs.getString("app_language", "en") ?: "en",
+            appLanguage = prefs.getString("app_language", when (Locale.getDefault().language) { "ar" -> "ar"; "pt" -> "pt-BR"; else -> "en" }) ?: "en",
             includeDeviceDiagnostics = prefs.getBoolean("include_device_diagnostics", true),
             collectAppLogsEnabled = prefs.getBoolean("collect_app_logs", false),
             redactSensitiveLogs = prefs.getBoolean("redact_sensitive_logs", true),
