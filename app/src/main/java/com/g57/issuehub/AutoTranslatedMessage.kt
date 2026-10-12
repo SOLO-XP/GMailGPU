@@ -84,7 +84,7 @@ internal fun AutoTranslatedMessage(
         translationStatus = "translating"
         try {
             val sourceLanguage = ChatTranslationCache.identifier.identifyLanguage(original).await()
-            val sourceCode = if (sourceLanguage == "und") null
+            val sourceCode = if (sourceLanguage == "und") TranslateLanguage.ENGLISH
                 else TranslateLanguage.fromLanguageTag(sourceLanguage)
             if (sourceCode == null || sourceCode == targetLanguage) {
                 translationStatus = "same"
