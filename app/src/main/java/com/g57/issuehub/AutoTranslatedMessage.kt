@@ -57,11 +57,12 @@ internal object ChatTranslationCache {
     }
 }
 
-internal fun resolveAppLanguage(appLanguage: String): String {
+internal fun resolveAppLanguage(appLanguage: String, deviceLanguage: String? = null): String {
     if (appLanguage != "system") return appLanguage
-    return when (Locale.getDefault().language.lowercase(Locale.ROOT)) {
-        "ar" -> "ar"
-        "pt" -> "pt-BR"
+    val language = (deviceLanguage ?: Locale.getDefault().language).lowercase(Locale.ROOT)
+    return when {
+        language == "ar" || language.startsWith("ar-") -> "ar"
+        language == "pt" || language.startsWith("pt-") -> "pt-BR"
         else -> "en"
     }
 }
