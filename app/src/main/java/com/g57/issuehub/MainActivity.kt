@@ -133,8 +133,35 @@ fun G57App(vm: G57ViewModel = viewModel()) {
         ui.openUrl?.let { url ->
             runCatching {
                 context.startActivity(Intent(Intent.ACTION_VIEW).apply { data = android.net.Uri.parse(url) })
+            }.onFailure {
+                android.widget.Toast.makeText(context, "No app can open this file type.", android.widget.Toast.LENGTH_LONG).show()
             }
             vm.clearOpenUrl()
+        }
+    }
+
+    LaunchedEffect(ui.downloadUrl, ui.downloadFilename) {
+        val url = ui.downloadUrl
+        val filename = ui.downloadFilename
+        if (url != null && filename != null) {
+            runCatching {
+                val manager = context.getSystemService(android.app.DownloadManager::class.java)
+                    ?: error("Android Download Manager is unavailable")
+                val safeName = filename.substringAfterLast('/').substringAfterLast('\\\\')
+                    .replace(Regex("[^A-Za-z0-9._() -]"), "_")
+                    .take(160).ifBlank { "gmailgpu-attachment" }
+                val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                    .setTitle(safeName)
+                    .setDescription("GMailGPU issue attachment")
+                    .setMimeType(ui.downloadMimeType ?: "application/octet-stream")
+                    .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, safeName)
+                manager.enqueue(request)
+                android.widget.Toast.makeText(context, "Downloading to Downloads: $safeName", android.widget.Toast.LENGTH_LONG).show()
+            }.onFailure {
+                android.widget.Toast.makeText(context, "Download failed: ${it.message ?: "unknown error"}", android.widget.Toast.LENGTH_LONG).show()
+            }
+            vm.clearDownloadRequest()
         }
     }
 
@@ -230,33 +257,38 @@ fun G57App(vm: G57ViewModel = viewModel()) {
 
 @Composable
 private fun BrandHeader(subtitle: String? = null, onMenu: (() -> Unit)? = null, onBack: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (onMenu != null) {
-            IconButton(onClick = onMenu, modifier = Modifier.padding(end = 4.dp)) {
-                Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = G57Primary, modifier = Modifier.size(28.dp))
-            }
-        }
-        if (onBack != null) {
-            Surface(
-                onClick = onBack,
-                shape = RoundedCornerShape(14.dp),
-                color = G57Primary,
-                contentColor = Color(0xFF080A0F),
-                modifier = Modifier.padding(end = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(20.dp))
-                    AppText("BACK", fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelLarge)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = G57Card,
+        tonalElevation = 4.dp,
+        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onMenu != null) {
+                IconButton(onClick = onMenu, modifier = Modifier.padding(end = 4.dp)) {
+                    Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = G57Primary, modifier = Modifier.size(27.dp))
                 }
             }
-        }
-        Column(Modifier.weight(1f)) {
-            AppText("GMailGPU", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = G57Primary)
-            if (subtitle != null) AppText(subtitle, color = G57Muted)
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.padding(end = 6.dp)) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = G57Primary)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                AppText("GMailGPU", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = G57Primary)
+                if (subtitle != null) AppText(subtitle, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            }
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = G57Primary.copy(alpha = 0.14f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, G57Primary.copy(alpha = 0.35f))
+            ) {
+                Icon(Icons.Default.Memory, contentDescription = "Mali GPU", tint = G57Primary, modifier = Modifier.padding(10.dp).size(21.dp))
+            }
         }
     }
 }
@@ -903,19 +935,33 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
 
 @Composable
 private fun IssueCard(issue: Issue, onClick: (Issue) -> Unit) {
-    ElevatedCard(onClick = { onClick(issue) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = G57Card)) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppText("#${issue.issueNumber}", color = G57Cyan, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(10.dp))
-                StatusBadge(issue.status)
+    ElevatedCard(
+        onClick = { onClick(issue) },
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = G57Card),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Row(Modifier.fillMaxWidth()) {
+            Box(Modifier.width(5.dp).fillMaxHeight().background(G57Primary))
+            Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(color = G57Primary.copy(alpha = 0.14f), shape = RoundedCornerShape(8.dp)) {
+                        AppText("#${issue.issueNumber}", modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp), color = G57Primary, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    StatusBadge(issue.status)
+                    Spacer(Modifier.weight(1f))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = G57Muted)
+                }
+                AppText(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 2)
+                AppText("${issue.game} • ${issue.problemType}", color = G57Muted)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Memory, contentDescription = null, tint = G57Cyan, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(6.dp))
+                    AppText("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                }
+                if (issue.userUsername != null) AppText("Reported by ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
             }
-            Spacer(Modifier.height(8.dp))
-            AppText(issue.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(6.dp))
-            AppText("${issue.game} • ${issue.problemType}", color = G57Muted)
-            if (issue.userUsername != null) AppText("User: ${issue.userUsername}", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
-            AppText("${issue.driver} • ${issue.emulator}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -1078,7 +1124,13 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             if (ui.attachments.isEmpty()) {
                 AppText("No attachments.", color = G57Muted)
             } else {
-                ui.attachments.forEach { attachment -> AttachmentRow(attachment) { vm.openAttachment(attachment) } }
+                ui.attachments.forEach { attachment ->
+                    AttachmentRow(
+                        attachment = attachment,
+                        onOpen = { vm.openAttachment(attachment) },
+                        onDownload = if (admin) ({ vm.downloadAttachment(attachment) }) else null
+                    )
+                }
             }
 
             if (!admin) {
@@ -1249,21 +1301,37 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
 }
 
 @Composable
-private fun AttachmentRow(attachment: Attachment, onOpen: () -> Unit) {
-    ElevatedCard(onClick = onOpen, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = G57Card)) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+private fun AttachmentRow(
+    attachment: Attachment,
+    onOpen: () -> Unit,
+    onDownload: (() -> Unit)? = null
+) {
+    ElevatedCard(
+        onClick = onOpen,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.elevatedCardColors(containerColor = G57Card),
+        shape = RoundedCornerShape(18.dp)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             val icon = when (attachment.type) {
                 "image" -> Icons.Default.Image
                 "video" -> Icons.Default.VideoFile
                 else -> Icons.Default.Description
             }
-            Icon(icon, contentDescription = null, tint = G57Cyan)
-            Spacer(Modifier.width(10.dp))
+            Surface(shape = RoundedCornerShape(12.dp), color = G57Primary.copy(alpha = 0.13f)) {
+                Icon(icon, contentDescription = null, tint = G57Primary, modifier = Modifier.padding(10.dp).size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                AppText(attachment.filename, maxLines = 1, fontWeight = FontWeight.SemiBold)
+                AppText(attachment.filename, maxLines = 2, fontWeight = FontWeight.SemiBold)
                 AppText("${attachment.type.uppercase(Locale.getDefault())} • ${formatBytes(attachment.size ?: 0)}", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             }
-            Icon(Icons.Default.OpenInNew, null)
+            if (onDownload != null) {
+                IconButton(onClick = onDownload) {
+                    Icon(Icons.Default.Download, contentDescription = "Download attachment", tint = G57Cyan)
+                }
+            }
+            Icon(Icons.Default.OpenInNew, contentDescription = "Open attachment", tint = G57Muted)
         }
     }
 }
