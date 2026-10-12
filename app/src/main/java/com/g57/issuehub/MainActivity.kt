@@ -699,6 +699,13 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
             }
             AppText("Theme changes apply across the whole app immediately and remain saved after restarting.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             Divider(color = G57Border)
+            AppUpdateSection(
+                accent = G57Cyan,
+                muted = G57Muted,
+                surface = G57Card,
+                border = G57Border
+            )
+            Divider(color = G57Border)
             AppText("PRIVACY & FILE CONTROLS", color = G57Cyan, fontWeight = FontWeight.Bold)
             AppText("These preferences stay on this device. Nothing is uploaded until you attach a file to an issue and submit it.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
