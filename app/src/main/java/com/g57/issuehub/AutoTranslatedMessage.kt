@@ -55,8 +55,18 @@ internal object ChatTranslationCache {
     }
 }
 
+internal fun resolveAppLanguage(appLanguage: String): String {
+    if (appLanguage != "system") return appLanguage
+    return when (Locale.getDefault().language.lowercase(Locale.ROOT)) {
+        "ar" -> "ar"
+        "pt" -> "pt-BR"
+        else -> "en"
+    }
+}
+
 private fun targetTranslateCode(appLanguage: String): String? {
-    val tag = when (appLanguage) {
+    val resolved = resolveAppLanguage(appLanguage)
+    val tag = when (resolved) {
         "pt-BR" -> "pt"
         "ar" -> "ar"
         "en" -> "en"
@@ -71,7 +81,8 @@ internal fun AutoTranslatedMessage(
     appLanguage: String = Locale.getDefault().language,
     modifier: Modifier = Modifier
 ) {
-    val targetLanguage = remember(appLanguage) { targetTranslateCode(appLanguage) }
+    val resolvedLanguage = remember(appLanguage) { resolveAppLanguage(appLanguage) }
+    val targetLanguage = remember(resolvedLanguage) { targetTranslateCode(resolvedLanguage) }
     var translated by remember(original, targetLanguage) { mutableStateOf<String?>(null) }
     var translationStatus by remember(original, targetLanguage) { mutableStateOf("pending") }
 
@@ -104,7 +115,7 @@ internal fun AutoTranslatedMessage(
         Text(original)
         when {
             translationStatus == "done" && translated != null && translated != original -> {
-                val targetLabel = when (appLanguage) {
+                val targetLabel = when (resolvedLanguage) {
                     "ar" -> "العربية"
                     "pt-BR" -> "Português (Brasil)"
                     else -> "English"
@@ -118,14 +129,14 @@ internal fun AutoTranslatedMessage(
             }
             translationStatus == "translating" -> {
                 AppText(
-                    "Translating…",
+                    "Translating… First translation may take a little while while the language model downloads. Please wait.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             translationStatus == "unavailable" -> {
                 AppText(
-                    "Translation unavailable · original shown",
+                    "Translation unavailable · original shown. Check your internet connection and try again.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
