@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -137,6 +138,12 @@ private fun g57Palette(choice: String): G57Palette = when (choice) {
 fun G57App(vm: G57ViewModel = viewModel()) {
     val ui by vm.ui.collectAsState()
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val deviceLanguage = configuration.locales[0]?.language?.lowercase(Locale.ROOT)
+        ?: Locale.getDefault().language.lowercase(Locale.ROOT)
+    val resolvedLanguage = remember(ui.appLanguage, deviceLanguage) {
+        resolveAppLanguage(ui.appLanguage, deviceLanguage)
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -160,7 +167,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     }
 
     LaunchedEffect(ui.appLanguage) {
-        val target = when (resolveAppLanguage(ui.appLanguage)) {
+        val target = when (resolvedLanguage) {
             "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
             "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
             else -> null
@@ -218,8 +225,8 @@ fun G57App(vm: G57ViewModel = viewModel()) {
 
     CompositionLocalProvider(
         LocalG57Palette provides palette,
-        LocalAppLanguage provides resolveAppLanguage(ui.appLanguage),
-        LocalLayoutDirection provides if (resolveAppLanguage(ui.appLanguage) == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
+        LocalAppLanguage provides resolvedLanguage,
+        LocalLayoutDirection provides if (resolvedLanguage == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
     MaterialTheme(
         colorScheme = if (palette.light) lightColorScheme(
@@ -541,7 +548,7 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
             AppText("REFRESH MY ISSUES")
         }
         Spacer(Modifier.height(4.dp))
-        IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.")
+        IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.", modifier = Modifier.weight(1f))
     }
 
     shownNotification?.let { notification ->
@@ -609,7 +616,7 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                 }
             }
         }
-        IssueList(ui.issues, vm::openAdminIssue, "No issues in Cloud.")
+        IssueList(ui.issues, vm::openAdminIssue, "No issues in Cloud.", modifier = Modifier.weight(1f))
     }
 }
 
@@ -1007,7 +1014,12 @@ private fun StatChip(name: String, count: Int) {
 }
 
 @Composable
-private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: String) {
+private fun IssueList(
+    issues: List<Issue>,
+    onClick: (Issue) -> Unit,
+    emptyText: String,
+    modifier: Modifier = Modifier
+) {
     var selectedGroup by remember { mutableStateOf("All") }
     var searchQuery by remember { mutableStateOf("") }
     val groups = listOf(
@@ -1038,68 +1050,60 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
         }.sortedWith(compareByDescending<Issue> { it.issueNumber })
     }
 
-    // Search, status filters, and issue cards share one vertical scrolling area.
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        item(key = "issue_search") {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-                placeholder = { AppText("Search title, game, driver, username, or #issue") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
-                        }
+    Column(modifier = modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+            placeholder = { AppText("Search title, game, driver, username, or #issue") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear search")
                     }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(14.dp)
-            )
-        }
-        item(key = "issue_filters") {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                groups.forEach { (name, count) ->
-                    FilterChip(
-                        selected = selectedGroup == name,
-                        onClick = { selectedGroup = name },
-                        label = { AppText("$name ($count)") },
-                        leadingIcon = if (selectedGroup == name) {
-                            { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                        } else null
-                    )
                 }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp)
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            groups.forEach { (name, count) ->
+                FilterChip(
+                    selected = selectedGroup == name,
+                    onClick = { selectedGroup = name },
+                    label = { AppText("$name ($count)") },
+                    leadingIcon = if (selectedGroup == name) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
             }
         }
+        Divider(color = G57Border.copy(alpha = 0.55f))
         if (filtered.isEmpty()) {
-            item(key = "issue_empty_state") {
-                Box(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 28.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AppText(
-                        when {
-                            issues.isEmpty() -> emptyText
-                            searchQuery.isNotBlank() -> "No matching issues. Try another search."
-                            else -> "No issues in ${selectedGroup.lowercase()} yet."
-                        },
-                        color = G57Muted
-                    )
-                }
+            Box(
+                Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                AppText(
+                    when {
+                        issues.isEmpty() -> emptyText
+                        searchQuery.isNotBlank() -> "No matching issues. Try another search."
+                        else -> "No issues in ${selectedGroup.lowercase()} yet."
+                    },
+                    color = G57Muted
+                )
             }
         } else {
-            items(filtered, key = { it.id }) { issue ->
-                Box(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
-                    IssueCard(issue, onClick)
-                }
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filtered, key = { it.id }) { issue -> IssueCard(issue, onClick) }
             }
         }
     }
