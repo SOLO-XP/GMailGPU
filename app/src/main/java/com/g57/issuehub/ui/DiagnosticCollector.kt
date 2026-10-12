@@ -3,6 +3,9 @@ package com.g57.issuehub.ui
 import android.app.ActivityManager
 import android.content.Context
 import android.net.Uri
+import android.opengl.EGL14
+import android.opengl.EGLConfig
+import android.opengl.GLES20
 import android.os.Build
 import android.os.Process
 import android.os.Environment
@@ -84,12 +87,17 @@ object DiagnosticCollector {
         val availableMb = if (activityManager != null) memory.availMem / (1024L * 1024L) else null
         val soc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MODEL.takeIf { it.isNotBlank() && it != "unknown" }
             else null
-        val gpuHints = "${Build.HARDWARE} ${Build.DEVICE} ${Build.PRODUCT}".lowercase(Locale.US)
-        val gpu = when {
-            "mali-g57" in gpuHints || "g57" in gpuHints -> "Mali-G57 (detected from device identifiers; verify exact model)"
-            "mali" in gpuHints -> "Mali GPU (exact model not exposed; verify manually)"
-            else -> "Not reliably exposed by Android; please enter the GPU model manually"
-        }
+        // Query the actual OpenGL renderer through a tiny off-screen EGL context.
+        // This is more reliable than guessing the GPU from the device codename.
+        val gpu = detectGpuRenderer()
+            ?: run {
+                val gpuHints = "${Build.HARDWARE} ${Build.DEVICE} ${Build.PRODUCT}".lowercase(Locale.US)
+                when {
+                    "mali-g57" in gpuHints || "g57" in gpuHints -> "Mali-G57 (device identifier hint; exact renderer unavailable)"
+                    "mali" in gpuHints -> "Mali GPU (device identifier hint; exact renderer unavailable)"
+                    else -> "GPU renderer unavailable from Android graphics API"
+                }
+            }
         val version = runCatching {
             val info = if (Build.VERSION.SDK_INT >= 33) context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
                 else context.packageManager.getPackageInfo(context.packageName, 0)
@@ -125,6 +133,68 @@ object DiagnosticCollector {
             dataStorageTotalMb = storageTotalMb,
             dataStorageFreeMb = storageFreeMb
         )
+    }
+
+    private fun detectGpuRenderer(): String? {
+        var display = EGL14.EGL_NO_DISPLAY
+        var context = EGL14.EGL_NO_CONTEXT
+        var surface = EGL14.EGL_NO_SURFACE
+        try {
+            display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+            if (display == EGL14.EGL_NO_DISPLAY) return null
+            val version = IntArray(2)
+            if (!EGL14.eglInitialize(display, version, 0, version, 1)) return null
+
+            val configAttributes = intArrayOf(
+                EGL14.EGL_SURFACE_TYPE, EGL14.EGL_PBUFFER_BIT,
+                EGL14.EGL_RENDERABLE_TYPE, 4, // EGL_OPENGL_ES2_BIT
+                EGL14.EGL_RED_SIZE, 8,
+                EGL14.EGL_GREEN_SIZE, 8,
+                EGL14.EGL_BLUE_SIZE, 8,
+                EGL14.EGL_NONE
+            )
+            val configs = arrayOfNulls<EGLConfig>(1)
+            val configCount = IntArray(1)
+            if (!EGL14.eglChooseConfig(display, configAttributes, 0, configs, 0, 1, configCount, 0) ||
+                configCount[0] == 0 || configs[0] == null
+            ) return null
+
+            context = EGL14.eglCreateContext(
+                display, configs[0], EGL14.EGL_NO_CONTEXT,
+                intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE), 0
+            )
+            if (context == EGL14.EGL_NO_CONTEXT) return null
+            surface = EGL14.eglCreatePbufferSurface(
+                display, configs[0],
+                intArrayOf(EGL14.EGL_WIDTH, 1, EGL14.EGL_HEIGHT, 1, EGL14.EGL_NONE), 0
+            )
+            if (surface == EGL14.EGL_NO_SURFACE ||
+                !EGL14.eglMakeCurrent(display, surface, surface, context)
+            ) return null
+
+            val renderer = GLES20.glGetString(GLES20.GL_RENDERER)?.trim().orEmpty()
+            val vendor = GLES20.glGetString(GLES20.GL_VENDOR)?.trim().orEmpty()
+            val glVersion = GLES20.glGetString(GLES20.GL_VERSION)?.trim().orEmpty()
+            if (renderer.isBlank() || renderer.equals("unknown", ignoreCase = true)) return null
+            return buildList {
+                add(renderer)
+                if (vendor.isNotBlank()) add("Vendor: $vendor")
+                if (glVersion.isNotBlank()) add("API: $glVersion")
+            }.joinToString(" | ")
+        } catch (_: Throwable) {
+            return null
+        } finally {
+            runCatching {
+                if (display != EGL14.EGL_NO_DISPLAY) {
+                    EGL14.eglMakeCurrent(
+                        display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT
+                    )
+                    if (surface != EGL14.EGL_NO_SURFACE) EGL14.eglDestroySurface(display, surface)
+                    if (context != EGL14.EGL_NO_CONTEXT) EGL14.eglDestroyContext(display, context)
+                    EGL14.eglTerminate(display)
+                }
+            }
+        }
     }
 
     fun createReportFile(context: Context, includeDeviceDetails: Boolean): PickedFile {
