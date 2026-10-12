@@ -123,12 +123,14 @@ private val G57Muted: Color @Composable get() = LocalG57Palette.current.muted
 private val G57Border: Color @Composable get() = LocalG57Palette.current.border
 
 private fun g57Palette(choice: String): G57Palette = when (choice) {
-    "Ocean" -> G57Palette(Color(0xFF061923), Color(0xFF0D2938), Color(0xFF48B8E8), Color(0xFF8BE5FF), Color(0xFFEAF9FF), Color(0xFF91B6C7), Color(0xFF245064))
-    "Emerald" -> G57Palette(Color(0xFF071A14), Color(0xFF102B20), Color(0xFF4ED6A0), Color(0xFF9AF5CB), Color(0xFFE9FFF5), Color(0xFF96BDAA), Color(0xFF285641))
-    "Amber" -> G57Palette(Color(0xFF1B1408), Color(0xFF302312), Color(0xFFFFBD59), Color(0xFFFFDE9A), Color(0xFFFFF7E8), Color(0xFFC6B28F), Color(0xFF5B4528))
-    "Rose" -> G57Palette(Color(0xFF1D0B14), Color(0xFF321321), Color(0xFFFF78AC), Color(0xFFFFB6D0), Color(0xFFFFF0F6), Color(0xFFC8A0B1), Color(0xFF633047))
-    "Light", "Violet" -> G57Palette(Color(0xFFF4F6FF), Color(0xFFFFFFFF), Color(0xFF6D4AFF), Color(0xFF008DB8), Color(0xFF171A2B), Color(0xFF626B80), Color(0xFFDCE1F0), light = true)
-    else -> G57Palette(Color(0xFFF4F6FF), Color(0xFFFFFFFF), Color(0xFF6D4AFF), Color(0xFF008DB8), Color(0xFF171A2B), Color(0xFF626B80), Color(0xFFDCE1F0), light = true)
+    // Default: a low-glare graphite / midnight dashboard with restrained neon accents.
+    "Violet" -> G57Palette(Color(0xFF0B0D17), Color(0xFF151827), Color(0xFF9B7BFF), Color(0xFF52D7F5), Color(0xFFF0F1FA), Color(0xFFA4A8BE), Color(0xFF30344A))
+    "Ocean" -> G57Palette(Color(0xFF07141D), Color(0xFF102431), Color(0xFF48B8E8), Color(0xFF8BE5FF), Color(0xFFEAF9FF), Color(0xFF91B6C7), Color(0xFF245064))
+    "Emerald" -> G57Palette(Color(0xFF091711), Color(0xFF14271F), Color(0xFF4ED6A0), Color(0xFF9AF5CB), Color(0xFFE9FFF5), Color(0xFF96BDAA), Color(0xFF285641))
+    "Amber" -> G57Palette(Color(0xFF19130B), Color(0xFF292116), Color(0xFFFFBD59), Color(0xFFFFDE9A), Color(0xFFFFF7E8), Color(0xFFC6B28F), Color(0xFF5B4528))
+    "Rose" -> G57Palette(Color(0xFF1A0D15), Color(0xFF2A1722), Color(0xFFFF78AC), Color(0xFFFFB6D0), Color(0xFFFFF0F6), Color(0xFFC8A0B1), Color(0xFF633047))
+    "Light" -> G57Palette(Color(0xFFF0F2F8), Color(0xFFFFFFFF), Color(0xFF6548D7), Color(0xFF007F9F), Color(0xFF202235), Color(0xFF626B80), Color(0xFFD6DBE8), light = true)
+    else -> G57Palette(Color(0xFF0B0D17), Color(0xFF151827), Color(0xFF9B7BFF), Color(0xFF52D7F5), Color(0xFFF0F1FA), Color(0xFFA4A8BE), Color(0xFF30344A))
 }
 
 @Composable
@@ -981,6 +983,7 @@ private fun StatChip(name: String, count: Int) {
 @Composable
 private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: String) {
     var selectedGroup by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
     val groups = listOf(
         "All" to issues.size,
         "Opened" to issues.count { it.status == "open" },
@@ -988,18 +991,44 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
         "Fixed" to issues.count { it.status == "fixed" },
         "Closed" to issues.count { it.status == "closed" }
     )
-    val filtered = remember(issues, selectedGroup) {
-        val matching = when (selectedGroup) {
+    val filtered = remember(issues, selectedGroup, searchQuery) {
+        val matchingGroup = when (selectedGroup) {
             "Opened" -> issues.filter { it.status == "open" }
             "Active" -> issues.filter { it.status in listOf("investigating", "fix_in_progress", "testing") }
             "Fixed" -> issues.filter { it.status == "fixed" }
             "Closed" -> issues.filter { it.status == "closed" }
             else -> issues
         }
-        matching.sortedWith(compareByDescending<Issue> { it.issueNumber })
+        val query = searchQuery.trim().lowercase(Locale.ROOT)
+        matchingGroup.filter { issue ->
+            query.isBlank() ||
+                issue.title.lowercase(Locale.ROOT).contains(query) ||
+                issue.game.lowercase(Locale.ROOT).contains(query) ||
+                issue.problemType.lowercase(Locale.ROOT).contains(query) ||
+                issue.driver.lowercase(Locale.ROOT).contains(query) ||
+                issue.emulator.lowercase(Locale.ROOT).contains(query) ||
+                issue.issueNumber.toString().contains(query) ||
+                (issue.userUsername ?: "").lowercase(Locale.ROOT).contains(query)
+        }.sortedWith(compareByDescending<Issue> { it.issueNumber })
     }
 
     Column(Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+            placeholder = { AppText("Search title, game, driver, username, or #issue") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = G57Cyan) },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear search")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp)
+        )
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1018,7 +1047,11 @@ private fun IssueList(issues: List<Issue>, onClick: (Issue) -> Unit, emptyText: 
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 AppText(
-                    if (issues.isEmpty()) emptyText else "No issues in ${selectedGroup.lowercase()} yet.",
+                    when {
+                        issues.isEmpty() -> emptyText
+                        searchQuery.isNotBlank() -> "No matching issues. Try another search."
+                        else -> "No issues in ${selectedGroup.lowercase()} yet."
+                    },
                     color = G57Muted
                 )
             }
