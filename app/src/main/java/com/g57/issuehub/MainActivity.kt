@@ -63,10 +63,13 @@ internal fun AppText(
             else -> null
         } ?: return@LaunchedEffect
         try {
-            val detected = ChatTranslationCache.identifier.identifyLanguage(text).await()
-            val source = if (detected == "und") com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
-                else com.google.mlkit.nl.translate.TranslateLanguage.fromLanguageTag(detected)
-            if (source == null || source == target) return@LaunchedEffect
+            // All app-owned interface labels are authored in English. Do not run language
+            // identification on short labels ("Home", "OK", "GPU"): ML Kit often returns "und".
+            // That was the reason many controls stayed in English after a language change.
+            val source = com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
+            if (text.any { it in '\u0600'..'\u06FF' } && language == "ar") return@LaunchedEffect
+            if (text.any { it in '\u00C0'..'\u024F' } && language == "pt-BR" &&
+                text.any { it in "ãõçáéíóúâêô" }) return@LaunchedEffect
             val translator = ChatTranslationCache.translator(source, target)
             ChatTranslationCache.ensureModel(source, target)
             val result = translator.translate(text).await()
@@ -260,15 +263,48 @@ private fun BrandHeader(subtitle: String? = null, onMenu: (() -> Unit)? = null, 
 
 @Composable
 private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Image(painterResource(com.g57.issuehub.R.drawable.g57_uploaded_logo), "G57 logo", Modifier.size(112.dp))
-        Spacer(Modifier.height(12.dp))
-        AppText("GMailGPU", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = G57Primary)
-        AppText("G57 • G52 • G615 • G720 | Mali GPU Support", color = G57Cyan, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(24.dp))
-        AppText("Choose access", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(G57Bg)) {
+        val compact = maxHeight < 760.dp
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = G57Card,
+                border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    Modifier.padding(if (compact) 18.dp else 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth().height(5.dp).background(
+                            androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(G57Primary, G57Cyan, G57Primary)),
+                            RoundedCornerShape(50)
+                        )
+                    )
+                    Image(painterResource(com.g57.issuehub.R.drawable.g57_uploaded_logo), "GMailGPU logo", Modifier.size(if (compact) 76.dp else 96.dp))
+                    AppText("GMailGPU", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = G57Primary)
+                    AppText("MALI GPU • WINLATOR ISSUE HUB", color = G57Cyan, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                    AppText("G57 · G52 · G615 · G720", color = G57Muted, style = MaterialTheme.typography.bodyMedium)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("en" to "English", "ar" to "العربية", "pt-BR" to "PT-BR").forEach { (code, label) ->
+                            FilterChip(
+                                selected = ui.appLanguage == code,
+                                onClick = { vm.setAppLanguage(code) },
+                                label = { AppText(label) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    Divider(color = G57Border)
+                    AppText("Welcome back", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    AppText("Choose your access type to continue.", color = G57Muted, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             RoleCard("USER", "Report & track issues", ui.loginRole == "user", { vm.setLoginRole("user") }, Modifier.weight(1f))
             RoleCard("ADMIN", "Developer panel", ui.loginRole == "admin", { vm.setLoginRole("admin") }, Modifier.weight(1f))
         }
@@ -312,7 +348,10 @@ private fun LoginScreen(ui: UiState, vm: G57ViewModel) {
         Button(onClick = vm::login, enabled = !ui.loading, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
             AppText(if (ui.loading) "PLEASE WAIT…" else if (ui.loginRole == "user") { if (ui.userCreateAccount) "CREATE ACCOUNT" else "SIGN IN" } else "SIGN IN")
         }
-        ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp)) }
+                    ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 14.dp)) }
+                }
+            }
+        }
     }
 }
 
