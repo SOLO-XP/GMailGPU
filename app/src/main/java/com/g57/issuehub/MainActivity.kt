@@ -129,6 +129,22 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    LaunchedEffect(ui.appLanguage) {
+        val target = when (ui.appLanguage) {
+            "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
+            "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
+            else -> null
+        }
+        if (target != null) {
+            runCatching {
+                ChatTranslationCache.ensureModel(
+                    com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH,
+                    target
+                )
+            }
+        }
+    }
+
     LaunchedEffect(ui.openUrl) {
         ui.openUrl?.let { url ->
             runCatching {
@@ -147,7 +163,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
             runCatching {
                 val manager = context.getSystemService(android.app.DownloadManager::class.java)
                     ?: error("Android Download Manager is unavailable")
-                val safeName = filename.substringAfterLast('/').substringAfterLast('\\\\')
+                val safeName = filename.substringAfterLast('/').substringAfterLast('\\')
                     .replace(Regex("[^A-Za-z0-9._() -]"), "_")
                     .take(160).ifBlank { "gmailgpu-attachment" }
                 val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
@@ -408,19 +424,36 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
         ui.profile?.id?.let(vm::loadUserData)
     }
     Column(Modifier.fillMaxSize()) {
-        BrandHeader("Your issues", onMenu = onMenu)
-        Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                AppText("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge)
-                val unread = ui.notifications.count { it.readAt == null }
-                if (unread > 0) AppText("🔔 $unread notification${if (unread == 1) "" else "s"}", color = G57Cyan)
+        BrandHeader("Your support workspace", onMenu = onMenu)
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = G57Primary.copy(alpha = 0.12f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, G57Primary.copy(alpha = 0.35f))
+        ) {
+            Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    AppText("Welcome, ${ui.profile?.username ?: ui.username}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    AppText("Track driver issues and share logs with developers.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    val unread = ui.notifications.count { it.readAt == null }
+                    if (unread > 0) AppText("🔔 $unread unread notification${if (unread == 1) "" else "s"}", color = G57Cyan, fontWeight = FontWeight.SemiBold)
+                }
+                Surface(shape = RoundedCornerShape(18.dp), color = G57Card) {
+                    Icon(Icons.Default.BugReport, contentDescription = null, tint = G57Primary, modifier = Modifier.padding(14.dp).size(32.dp))
+                }
             }
         }
-        Spacer(Modifier.height(14.dp))
-        Button(vm::openCreate, Modifier.fillMaxWidth().padding(horizontal = 20.dp), shape = RoundedCornerShape(18.dp)) {
-            Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); AppText("CREATE ISSUE")
+        Button(
+            onClick = vm::openCreate,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(vertical = 14.dp)
+        ) {
+            Icon(Icons.Default.Add, null)
+            Spacer(Modifier.width(8.dp))
+            AppText("CREATE NEW ISSUE", fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(10.dp))
         IssueList(ui.issues, vm::openUserIssue, "You have no issues yet.")
     }
 
@@ -446,27 +479,41 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
 private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
     LaunchedEffect(Unit) { vm.loadIssues(true) }
     Column(Modifier.fillMaxSize()) {
-        BrandHeader("ADMIN PANEL", onMenu = onMenu)
-        Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                AppText("All Issues", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                AppText("Developer access", color = G57Cyan)
+        BrandHeader("Developer control center", onMenu = onMenu)
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = G57Card,
+            border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        AppText("Issue operations", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        AppText("Review evidence, download user files, and reply to reports.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Icon(Icons.Default.AdminPanelSettings, contentDescription = null, tint = G57Primary, modifier = Modifier.size(32.dp))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = vm::openUserManagement, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.ManageAccounts, contentDescription = null)
+                        Spacer(Modifier.width(5.dp))
+                        AppText("USERS")
+                    }
+                    OutlinedButton(onClick = vm::openSolvedUsers, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Verified, contentDescription = null)
+                        Spacer(Modifier.width(5.dp))
+                        AppText("RESOLVED")
+                    }
+                }
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatChip("OPEN", ui.issues.count { it.status == "open" })
+                    StatChip("ACTIVE", ui.issues.count { it.status == "investigating" || it.status == "fix_in_progress" })
+                    StatChip("TESTING", ui.issues.count { it.status == "testing" })
+                    StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
+                }
             }
-            IconButton(onClick = vm::openUserManagement) {
-                Icon(Icons.Default.ManageAccounts, contentDescription = "User management")
-            }
-            IconButton(onClick = vm::openSolvedUsers) {
-                Icon(Icons.Default.Verified, contentDescription = "Solved users")
-            }
-            IconButton(vm::logout) { Icon(Icons.Default.Logout, null) }
         }
-        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatChip("OPEN", ui.issues.count { it.status == "open" })
-            StatChip("ACTIVE", ui.issues.count { it.status == "investigating" || it.status == "fix_in_progress" })
-            StatChip("TESTING", ui.issues.count { it.status == "testing" })
-            StatChip("FIXED", ui.issues.count { it.status == "fixed" || it.status == "closed" })
-        }
-        Spacer(Modifier.height(12.dp))
         IssueList(ui.issues, vm::openAdminIssue, "No issues in Cloud.")
     }
 }
