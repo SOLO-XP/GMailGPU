@@ -2,6 +2,8 @@ package com.g57.issuehub
 
 import android.content.Intent
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -98,6 +100,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 private data class G57Palette(
     val background: Color, val surface: Color, val primary: Color, val secondary: Color,
     val text: Color, val muted: Color, val border: Color, val light: Boolean = false
@@ -133,7 +141,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     // Hide only screens that reveal registered/resolved usernames. Other app screens
     // continue to allow screenshots, including screenshots of images and issue evidence.
     DisposableEffect(context, ui.screen) {
-        val window = (context as? Activity)?.window
+        val window = context.findActivity()?.window
         val sensitiveScreen = ui.screen == ScreenState.AdminUserManagement ||
             ui.screen == ScreenState.AdminSolvedUsers
         if (sensitiveScreen) {
