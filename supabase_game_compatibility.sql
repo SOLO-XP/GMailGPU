@@ -53,7 +53,32 @@ drop policy if exists "Submit own game report" on public.game_compatibility_repo
 create policy "Submit own game report"
   on public.game_compatibility_reports for insert
   to authenticated
-  with check (user_id = auth.uid());
+  with check (user_id = auth.uid() and review_status = 'community');
+
+create or replace function public.set_game_report_submitter()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  select p.username into new.username
+  from public.profiles p
+  where p.id = auth.uid();
+
+  if new.username is null or length(trim(new.username)) = 0 then
+    new.username := 'community member';
+  end if;
+
+  new.review_status := 'community';
+  return new;
+end;
+$;
+
+drop trigger if exists set_game_report_submitter on public.game_compatibility_reports;
+create trigger set_game_report_submitter
+before insert on public.game_compatibility_reports
+for each row execute function public.set_game_report_submitter();
 
 drop policy if exists "Update own community game report" on public.game_compatibility_reports;
 create policy "Update own community game report"
