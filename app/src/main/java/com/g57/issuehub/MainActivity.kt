@@ -731,6 +731,9 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
 
 @Composable
 private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
+    var shownReplyNotification by remember(ui.profile?.id, ui.notifications) {
+        mutableStateOf(ui.notifications.firstOrNull { it.readAt == null && it.title.contains("reply", ignoreCase = true) })
+    }
     LaunchedEffect(Unit) { vm.loadIssues(true) }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Developer control center", onMenu = onMenu)
@@ -783,6 +786,29 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                     }
                     AppText("ALL ISSUES", color = G57Cyan, fontWeight = FontWeight.Bold)
                 }
+            }
+        )
+    }
+    shownReplyNotification?.let { notification ->
+        AlertDialog(
+            onDismissRequest = {
+                vm.markNotificationRead(notification)
+                shownReplyNotification = null
+            },
+            title = { AppText("New reply in GMailGPU") },
+            text = { AppText("${notification.title}\n\n${notification.message}") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.markNotificationRead(notification)
+                    shownReplyNotification = null
+                    notification.issueId?.let(vm::openIssueFromNotification)
+                }) { AppText(if (notification.issueId != null) "OPEN ISSUE CHAT" else "OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    vm.markNotificationRead(notification)
+                    shownReplyNotification = null
+                }) { AppText("DISMISS") }
             }
         )
     }
