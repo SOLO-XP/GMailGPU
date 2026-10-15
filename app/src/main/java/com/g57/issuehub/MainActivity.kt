@@ -30,7 +30,9 @@ import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -41,6 +43,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.g57.issuehub.data.Attachment
+import com.g57.issuehub.data.G57Repository
+import com.g57.issuehub.data.SupabaseProvider
 import com.g57.issuehub.data.Issue
 import com.g57.issuehub.data.Notification
 import com.g57.issuehub.ui.*
@@ -1238,9 +1242,6 @@ private fun StatusBadge(status: String) {
 private fun CreateIssueScreen(ui: UiState, vm: G57ViewModel) {
     val scroll = rememberScrollState()
     val context = LocalContext.current
-    LaunchedEffect(issue.id, admin) {
-        if (admin) vm.markIssueViewedByAdmin(issue.id)
-    }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.addFiles(readPickedFiles(uris, "image", context))
     }
@@ -1362,7 +1363,18 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
     var showDelete by remember { mutableStateOf(false) }
     var note by remember(issue.id) { mutableStateOf(issue.developerNote.orEmpty()) }
     var statusExpanded by remember { mutableStateOf(false) }
+    var imagePreviewUrl by remember { mutableStateOf<String?>(null) }
+    var imagePreviewName by remember { mutableStateOf<String?>(null) }
+    var imagePreviewError by remember { mutableStateOf<String?>(null) }
+    var imagePreviewLoading by remember { mutableStateOf(false) }
+    var reopenLoading by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(issue.id, admin) {
+        if (admin && SupabaseProvider.enabled) {
+            runCatching { G57Repository().markIssueViewedByAdmin(issue.id) }
+        }
+    }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.addFiles(readPickedFiles(uris, "image", context))
     }
@@ -1394,10 +1406,7 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 AppText(if (admin) "DELETE ISSUE (ADMIN)" else "DELETE MY ISSUE")
             }
             AppText(issue.description)
-            if (admin) {
-                Detail("User", issue.userUsername ?: issue.userId ?: "Unknown")
-                issue.lastAdminViewedAt?.let { Detail("Last developer review", it.replace("T", " ").take(16)) }
-            }
+            if (admin) Detail("User", issue.userUsername ?: issue.userId ?: "Unknown")
             Detail("Game", "${issue.game} ${issue.gameVersion.orEmpty()}")
             Detail("Problem", issue.problemType)
             Detail("Driver", issue.driver)
@@ -1419,7 +1428,26 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 ui.attachments.forEach { attachment ->
                     AttachmentRow(
                         attachment = attachment,
-                        onOpen = { vm.openAttachment(attachment) },
+                        onOpen = {
+                            if (attachment.type == "image" || attachment.mimeType.orEmpty().startsWith("image/")) {
+                                imagePreviewLoading = true
+                                imagePreviewError = null
+                                scope.launch {
+                                    runCatching { G57Repository().signedUrl(attachment.storagePath) }
+                                        .onSuccess { url ->
+                                            imagePreviewUrl = url
+                                            imagePreviewName = attachment.filename
+                                            imagePreviewLoading = false
+                                        }
+                                        .onFailure { error ->
+                                            imagePreviewLoading = false
+                                            imagePreviewError = "Could not load image. Check Supabase attachment access policies and admin permissions. ${error.message.orEmpty()}"
+                                        }
+                                }
+                            } else {
+                                vm.openAttachment(attachment)
+                            }
+                        },
                         onDownload = if (admin) ({ vm.downloadAttachment(attachment) }) else null
                     )
                 }
@@ -1558,13 +1586,33 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                             color = G57Text
                         )
                         Button(
-                            onClick = { vm.reopenOwnIssue(issue.id) },
-                            enabled = !ui.loading,
+                            onClick = {
+                                if (reopenLoading) return@Button
+                                if (!SupabaseProvider.enabled) {
+                                    imagePreviewError = "Reopening an issue requires the Supabase cloud database."
+                                    return@Button
+                                }
+                                reopenLoading = true
+                                scope.launch {
+                                    runCatching { G57Repository().reopenOwnIssue(issue.id) }
+                                        .onSuccess {
+                                            reopenLoading = false
+                                            android.widget.Toast.makeText(context, "Issue reopened. Refreshing your issue list.", android.widget.Toast.LENGTH_LONG).show()
+                                            vm.back()
+                                            vm.loadIssues(admin = false)
+                                        }
+                                        .onFailure { error ->
+                                            reopenLoading = false
+                                            imagePreviewError = "Could not reopen this issue. Run supabase_14_day_auto_close.sql in Supabase SQL Editor. ${error.message.orEmpty()}"
+                                        }
+                                }
+                            },
+                            enabled = !ui.loading && !reopenLoading,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            AppText("REOPEN ISSUE")
+                            AppText(if (reopenLoading) "REOPENING…" else "REOPEN ISSUE")
                         }
                     }
                 }
@@ -1586,25 +1634,17 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
         }
     }
 
-    if (ui.attachmentPreviewText != null || ui.attachmentPreviewBitmap != null) {
+    if (ui.attachmentPreviewText != null) {
         AlertDialog(
             onDismissRequest = vm::closeAttachmentPreview,
-            title = { AppText(ui.attachmentPreviewName ?: "Attachment preview", fontWeight = FontWeight.Bold, color = G57Text) },
+            title = { AppText(ui.attachmentPreviewName ?: "Log preview", fontWeight = FontWeight.Bold, color = G57Text) },
             text = {
-                if (ui.attachmentPreviewBitmap != null) {
-                    Image(
-                        bitmap = ui.attachmentPreviewBitmap!!.asImageBitmap(),
-                        contentDescription = ui.attachmentPreviewName ?: "Issue image",
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    AppText(
+                        ui.attachmentPreviewText.orEmpty(),
+                        color = G57Text,
+                        style = MaterialTheme.typography.bodySmall
                     )
-                } else {
-                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                        AppText(
-                            ui.attachmentPreviewText.orEmpty(),
-                            color = G57Text,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
                 }
             },
             confirmButton = {
@@ -1613,6 +1653,57 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             dismissButton = {
                 TextButton(onClick = vm::openAttachmentExternally) { AppText("OPEN FILE") }
             }
+        )
+    }
+
+    if (imagePreviewUrl != null) {
+        val previewUrl = imagePreviewUrl!!
+        AlertDialog(
+            onDismissRequest = { imagePreviewUrl = null; imagePreviewName = null },
+            title = { AppText(imagePreviewName ?: "Image preview", color = G57Text, fontWeight = FontWeight.Bold) },
+            text = {
+                AndroidView(
+                    factory = { webContext ->
+                        WebView(webContext).apply {
+                            settings.javaScriptEnabled = false
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            setBackgroundColor(android.graphics.Color.DKGRAY)
+                            webViewClient = WebViewClient()
+                            loadUrl(previewUrl)
+                        }
+                    },
+                    update = { view -> if (view.url != previewUrl) view.loadUrl(previewUrl) },
+                    modifier = Modifier.fillMaxWidth().height(400.dp)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { imagePreviewUrl = null; imagePreviewName = null }) { AppText("CLOSE") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    runCatching {
+                        context.startActivity(Intent(Intent.ACTION_VIEW).apply { data = android.net.Uri.parse(previewUrl) })
+                    }
+                }) { AppText("OPEN EXTERNALLY") }
+            }
+        )
+    }
+
+    if (imagePreviewError != null) {
+        AlertDialog(
+            onDismissRequest = { imagePreviewError = null },
+            title = { AppText("Attachment action failed", color = G57Text, fontWeight = FontWeight.Bold) },
+            text = { AppText(imagePreviewError.orEmpty(), color = G57Text) },
+            confirmButton = { TextButton(onClick = { imagePreviewError = null }) { AppText("OK") } }
+        )
+    }
+    if (imagePreviewLoading) {
+        AlertDialog(
+            onDismissRequest = { imagePreviewLoading = false },
+            title = { AppText("Loading image…", color = G57Text) },
+            text = { CircularProgressIndicator() },
+            confirmButton = { TextButton(onClick = { imagePreviewLoading = false }) { AppText("CANCEL") } }
         )
     }
 
