@@ -118,7 +118,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $g57_guard$
 begin
   if public.is_admin() then
     return new;
@@ -133,9 +133,7 @@ begin
   end if;
   return new;
 end;
-$;
-
-drop trigger if exists guard_owner_issue_reopen_trigger on public.issues;
+$g57_guard$;drop trigger if exists guard_owner_issue_reopen_trigger on public.issues;
 create trigger guard_owner_issue_reopen_trigger
 before update on public.issues
 for each row execute procedure public.guard_owner_issue_reopen();
@@ -227,7 +225,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = public
-as $
+as $g57_auto_close$
 declare
   closed_count integer;
 begin
@@ -240,14 +238,12 @@ begin
   get diagnostics closed_count = row_count;
   return closed_count;
 end;
-$;
-
-create or replace function public.notify_issue_resolved()
+$g57_auto_close$;create or replace function public.notify_issue_resolved()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $g57_notify$
 begin
   if (new.status in ('fixed','closed')) and (old.status not in ('fixed','closed')) then
     if new.status = 'closed' and new.developer_note like 'Closed automatically:%' then
@@ -270,9 +266,7 @@ begin
   end if;
   return new;
 end;
-$;
-
-drop trigger if exists issue_resolved_notification on public.issues;
+$g57_notify$;drop trigger if exists issue_resolved_notification on public.issues;
 create trigger issue_resolved_notification
 after update of status on public.issues
 for each row execute procedure public.notify_issue_resolved();
