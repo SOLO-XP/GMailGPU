@@ -13,16 +13,22 @@ create index if not exists issues_last_admin_viewed_at_idx
 create or replace function public.guard_owner_issue_reopen()
 returns trigger
 language plpgsql
-security definer
 set search_path = public
-as $$
+as $
 begin
+  -- Scheduled SQL runs without an auth.uid(); allow only trusted database roles.
+  if auth.uid() is null then
+    if current_user in ('postgres', 'service_role', 'supabase_admin') then
+      return new;
+    end if;
+    raise exception 'A signed-in owner or administrator is required.';
+  end if;
+
   if public.is_admin() then
     return new;
   end if;
 
-  if auth.uid() is null
-     or old.user_id is distinct from auth.uid()
+  if old.user_id is distinct from auth.uid()
      or old.status <> 'closed'
      or new.status <> 'open'
      or (to_jsonb(new) - 'status') is distinct from (to_jsonb(old) - 'status') then
@@ -64,7 +70,10 @@ begin
   get diagnostics closed_count = row_count;
   return closed_count;
 end;
-$$;
+$;
+
+-- Only the trusted cron/database owner may execute the global auto-close function.
+revoke all on function public.auto_close_unattended_issues() from public, anon, authenticated;
 
 -- Give the owner a useful notification explaining automatic closure.
 create or replace function public.notify_issue_resolved()
