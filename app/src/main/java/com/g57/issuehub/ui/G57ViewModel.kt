@@ -78,6 +78,7 @@ data class UiState(
     val chatMessages: List<IssueMessage> = emptyList(),
     val chatDraft: String = "",
     val notifications: List<Notification> = emptyList(),
+    val presenceRecords: List<UserPresence> = emptyList(),
     val resolvedUsers: List<ResolvedUser> = emptyList(),
     val userProfiles: List<Profile> = emptyList(),
     val selectedFiles: List<PickedFile> = emptyList(),
@@ -540,6 +541,77 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshIssueMessages(issueId: String) = loadIssueMessages(issueId)
 
+    /**
+     * Called while the activity is in the foreground. It refreshes both presence and the
+     * in-app notification feed. A persistent cursor means replies received while the app
+     * was closed can still be surfaced when the user next opens it.
+     */
+    fun refreshChatSignals() = viewModelScope.launch {
+        val profile = _ui.value.profile ?: return@launch
+        if (!SupabaseProvider.enabled) return@launch
+        val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+        val cursorKey = "gmailgpu_notification_cursor_${profile.id}"
+        val cursor = prefs.getString(cursorKey, null)
+
+        val notifications = runCatching { repo.notifications(profile.id) }.getOrNull()
+        val presence = runCatching { repo.visiblePresence() }.getOrNull()
+        if (presence != null) update { copy(presenceRecords = presence) }
+        if (notifications != null) {
+            val latest = notifications.mapNotNull { it.createdAt }.maxOrNull()
+            if (cursor == null) {
+                // First run: establish a baseline without firing old historical alerts.
+                if (latest != null) prefs.edit().putString(cursorKey, latest).apply()
+            } else {
+                notifications
+                    .filter { notification ->
+                        notification.createdAt != null &&
+                            notification.createdAt > cursor &&
+                            notification.title.contains("reply", ignoreCase = true) &&
+                            !notification.issueId.isNullOrBlank()
+                    }
+                    .sortedBy { it.createdAt.orEmpty() }
+                    .forEach { notification ->
+                        GMailGpuPush.showOnce(
+                            getApplication(),
+                            notification.id,
+                            notification.title,
+                            notification.message,
+                            notification.issueId.orEmpty()
+                        )
+                    }
+                if (latest != null && latest > cursor) prefs.edit().putString(cursorKey, latest).apply()
+            }
+            update { copy(notifications = notifications) }
+        }
+    }
+
+    fun setPresenceOnline(online: Boolean) = viewModelScope.launch {
+        if (_ui.value.profile == null || !SupabaseProvider.enabled) return@launch
+        runCatching {
+            repo.updatePresence(online)
+            repo.visiblePresence()
+        }.onSuccess { records ->
+            update { copy(presenceRecords = records) }
+        }
+    }
+
+    fun registerPushToken(token: String) = viewModelScope.launch {
+        if (_ui.value.profile == null || !SupabaseProvider.enabled || token.isBlank()) return@launch
+        runCatching { repo.registerPushToken(token) }
+        // Keep token registration failures non-blocking: issue chat must still work.
+    }
+
+    fun openIssueFromNotification(issueId: String) = viewModelScope.launch {
+        val profile = _ui.value.profile ?: return@launch
+        if (!SupabaseProvider.enabled || issueId.isBlank()) return@launch
+        runCatching { repo.issueById(issueId) }
+            .onSuccess { issue -> openIssue(issue, admin = profile.role == "admin") }
+            .onFailure { failure ->
+                update { copy(error = "Could not open the issue from this notification. Refresh your issue list and try again. ${failure.message.orEmpty()}") }
+                if (profile.role == "admin") loadIssues(true) else loadUserData(profile.id)
+            }
+    }
+
     private fun loadIssueMessages(issueId: String) = viewModelScope.launch {
         if (!SupabaseProvider.enabled) return@launch
         runCatching { repo.issueMessages(issueId) }
@@ -722,8 +794,13 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun logout() = viewModelScope.launch {
-        if (SupabaseProvider.enabled) runCatching { repo.signOut() }
         val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+        if (SupabaseProvider.enabled) {
+            val token = prefs.getString("gmailgpu_pending_fcm_token", null)
+            runCatching { repo.updatePresence(false) }
+            if (!token.isNullOrBlank()) runCatching { repo.deletePushToken(token) }
+            runCatching { repo.signOut() }
+        }
         val savedTheme = prefs.getString("theme_choice", "Violet") ?: "Violet"
         val savedLanguage = prefs.getString("app_language", "system") ?: "system"
         _ui.value = UiState(
