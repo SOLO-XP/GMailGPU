@@ -129,6 +129,10 @@ begin
     new.username := old.username;
     new.evidence_paths := old.evidence_paths;
   else
+    if new.review_status = 'verified' and not new.evidence_reviewed then
+      raise exception 'A report must have its evidence reviewed before it can be verified.';
+    end if;
+
     if new.evidence_reviewed and not old.evidence_reviewed then
       new.evidence_reviewed_at := now();
       new.evidence_reviewed_by := auth.uid();
