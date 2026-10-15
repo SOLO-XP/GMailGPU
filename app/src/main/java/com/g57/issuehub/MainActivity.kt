@@ -58,20 +58,21 @@ internal fun AppText(
     text: String,
     modifier: Modifier = Modifier,
     color: Color = Color.Unspecified,
+    // Preserve the original parameter order so existing positional calls remain source-compatible.
+    fontWeight: FontWeight? = null,
+    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    style: androidx.compose.ui.text.TextStyle = androidx.compose.material3.LocalTextStyle.current,
     fontSize: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     fontStyle: androidx.compose.ui.text.font.FontStyle? = null,
-    fontWeight: FontWeight? = null,
     fontFamily: androidx.compose.ui.text.font.FontFamily? = null,
     letterSpacing: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     textDecoration: androidx.compose.ui.text.style.TextDecoration? = null,
-    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
     lineHeight: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     overflow: androidx.compose.ui.text.style.TextOverflow = androidx.compose.ui.text.style.TextOverflow.Clip,
     softWrap: Boolean = true,
-    maxLines: Int = Int.MAX_VALUE,
     minLines: Int = 1,
-    onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {},
-    style: androidx.compose.ui.text.TextStyle = androidx.compose.material3.LocalTextStyle.current
+    onTextLayout: (androidx.compose.ui.text.TextLayoutResult) -> Unit = {}
 ) {
     val language = LocalAppLanguage.current
     val translated = remember(text, language) { mutableStateOf(UiTextTranslationCache.get(language, text) ?: text) }
