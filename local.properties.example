@@ -1,2 +1,7 @@
 SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 SUPABASE_PUBLISHABLE_KEY=YOUR-PUBLISHABLE-KEY
+# Optional. Required for Firebase Cloud Messaging phone notifications.
+FIREBASE_API_KEY=your-firebase-web-api-key
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_APPLICATION_ID=1:1234567890:android:your-app-id
+FIREBASE_MESSAGING_SENDER_ID=1234567890
