@@ -1,30 +1,21 @@
-# GMailGPU 0.2 Beta
+# Changelog
 
-- Bumped Android app version to 0.2 Beta (versionCode 12).
-- Added per-issue chat with message history and manual refresh.
-- Added Supabase issue_messages database structure and RLS policies.
-- Renamed the app to GMailGPU to clarify the same project now covers more Mali GPU families.
-- Improved the UI for a cleaner, more consistent experience.
-- Expanded GPU issue-reporting categories to Mali-G57, Mali-G52, Mali-G615, and Mali-G720.
-- Updated the GitHub Actions APK build verification and artifact name to 0.2 Beta.
+## 🚀 0.3.1 Beta — Community Game Lab Update
 
-# Previous G57 0.2.8
+- Added Community Game Lab hub, advanced game finder filters, and System Driver vs PanVK comparison cards.
+- Added game watchlists with database-triggered in-app alerts when new matching reports are submitted.
+- Added saved configurations for driver, emulator, Wine, DXVK, VKD3D-Proton and Box64 settings, with opt-in public sharing.
+- Added guided smart troubleshooting and prefilled issue report wizard.
+- Added a local diagnostic log analyzer and one-click diagnostic package.
+- Added game report evidence previews, per-report discussion, duplicate warnings, report flags, and owner-controlled deletion.
+- Added benchmark duration and temperature fields, community regression signals, and admin evidence review / verified test workflow.
+- Added tester profiles, contribution badges, public tester highlights, community statistics, and PDF export.
+- Added driver GitHub Release tracker and offline cache for the latest community reports and saved configurations.
+- Added optional ML Kit translation for report notes. Technical error codes and the original report remain available.
+- Added `supabase_game_lab_features.sql`; run it after `supabase_game_compatibility.sql`.
 
-- Bumped Android version to 0.2.8 (versionCode 9).
-- Separated the owner password-management page from the public download homepage.
-- Kept owner-only authorization checks in the Supabase Edge Function.
-- Fixed missing ViewModel actions that prevented the Android build from compiling.
-- Updated the APK workflow's version verification and artifact name.
+## 0.3 Beta — Complete Mali Community Toolkit
 
-# G57 0.2.0
-
-- Added real Android pickers for images, videos and logs.
-- Added user Issue details and Issue deletion.
-- Added Admin Issue deletion.
-- Added Admin status controls and developer notes.
-- Added automatic in-app resolution notifications when status changes to Fixed/Closed.
-- Added Admin "Solved Users" list.
-- Added device model + Android version capture for new Issues.
-- Fixed user/admin RLS so only Admin can update Issue status/notes.
-- Added private Storage delete/read policies.
-- Added GitHub Actions cloud build workflow for a debug APK.
+- Added Mali GPU issue tracking, developer chat, smart diagnostics and reliable attachment uploads.
+- Added community driver links for Mali-G52, G57, G615 and G720.
+- Added language settings, theme controls, update checking, and unattended issue handling.
