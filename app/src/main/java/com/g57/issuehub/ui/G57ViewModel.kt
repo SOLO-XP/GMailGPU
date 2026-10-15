@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -78,6 +79,9 @@ data class UiState(
     val attachments: List<Attachment> = emptyList(),
     val chatMessages: List<IssueMessage> = emptyList(),
     val chatDraft: String = "",
+    val chatTypingStates: List<IssueTypingState> = emptyList(),
+    val chatNotificationMode: String = "all",
+    val chatMarkImportant: Boolean = false,
     val notifications: List<Notification> = emptyList(),
     val presenceRecords: List<UserPresence> = emptyList(),
     val resolvedUsers: List<ResolvedUser> = emptyList(),
@@ -105,6 +109,8 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = G57Repository()
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
+    private var typingUpdateJob: Job? = null
+    @Volatile private var lastChatTypingAt: Long = 0L
 
     init {
         val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
@@ -488,6 +494,9 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                 attachments = emptyList(),
                 chatMessages = emptyList(),
                 chatDraft = "",
+                chatTypingStates = emptyList(),
+                chatNotificationMode = "all",
+                chatMarkImportant = false,
                 selectedFiles = emptyList(),
                 loading = true,
                 error = null
