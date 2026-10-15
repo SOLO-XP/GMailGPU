@@ -454,24 +454,24 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
-                Text("Game Compatibility Library", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Community evidence • System Driver vs PanVK", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppText("Game Compatibility Library", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                AppText("Community evidence • System Driver vs PanVK", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { refresh() }, enabled = !loading) { Icon(Icons.Default.Refresh, contentDescription = "Refresh") }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showForm = !showForm }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text(if (showForm) "HIDE FORM" else "ADD GAME RESULT")
+                Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); AppText(if (showForm) "HIDE FORM" else "ADD GAME RESULT")
             }
         }
-        if (notice != null) Text(notice!!, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.primary)
-        if (error != null) Text(error!!, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
+        if (notice != null) AppText(notice!!, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.primary)
+        if (error != null) AppText(error!!, Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
         if (showForm) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("1 • Game and device", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                OutlinedTextField(game, { game = it }, label = { Text("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Text("Game cover art *", fontWeight = FontWeight.SemiBold)
-                Text("Choose the official cover or a square game image from your device. It will appear as a square thumbnail in search.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppText("1 • Game and device", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(game, { game = it }, label = { AppText("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                AppText("Game cover art *", fontWeight = FontWeight.SemiBold)
+                AppText("Choose the official cover or a square game image from your device. It will appear as a square thumbnail in search.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (gameCover != null) {
                         AsyncImage(model = gameCover, contentDescription = "Selected game cover", contentScale = ContentScale.Crop, modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp)))
@@ -482,51 +482,51 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         OutlinedButton(onClick = { coverPicker.launch("image/*") }) {
-                            Icon(Icons.Default.Image, null); Spacer(Modifier.width(6.dp)); Text(if (gameCover == null) "CHOOSE COVER" else "CHANGE COVER")
+                            Icon(Icons.Default.Image, null); Spacer(Modifier.width(6.dp)); AppText(if (gameCover == null) "CHOOSE COVER" else "CHANGE COVER")
                         }
-                        if (gameCover != null) TextButton(onClick = { gameCover = null }) { Text("Remove image") }
+                        if (gameCover != null) TextButton(onClick = { gameCover = null }) { AppText("Remove image") }
                     }
                 }
-                OutlinedTextField(gameVersion, { gameVersion = it }, label = { Text("Game version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Text("GPU family")
+                OutlinedTextField(gameVersion, { gameVersion = it }, label = { AppText("Game version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                AppText("GPU family")
                 FlowRowCompat(options = gameGpuOptions, selected = gpu, onSelect = { gpu = it })
-                OutlinedTextField(device, { device = it }, label = { Text("Phone / device model") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(soc, { soc = it }, label = { Text("SoC (e.g. Dimensity 6100+)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(android, { android = it }, label = { Text("Android version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(device, { device = it }, label = { AppText("Phone / device model") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(soc, { soc = it }, label = { AppText("SoC (e.g. Dimensity 6100+)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(android, { android = it }, label = { AppText("Android version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 
                 HorizontalDivider()
-                Text("2 • Driver and compatibility layers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                AppText("2 • Driver and compatibility layers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 FlowRowCompat(options = gameDriverOptions, selected = driver, onSelect = { driver = it })
-                OutlinedTextField(driverVersion, { driverVersion = it }, label = { Text("Driver build / version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(emulator, { emulator = it }, label = { Text("Winlator / GameHub / other") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(emulatorVersion, { emulatorVersion = it }, label = { Text("Emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(wine, { wine = it }, label = { Text("Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(dxvk, { dxvk = it }, label = { Text("DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(vkd3d, { vkd3d = it }, label = { Text("VKD3D-Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(box64, { box64 = it }, label = { Text("Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(driverVersion, { driverVersion = it }, label = { AppText("Driver build / version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(emulator, { emulator = it }, label = { AppText("Winlator / GameHub / other") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(emulatorVersion, { emulatorVersion = it }, label = { AppText("Emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(wine, { wine = it }, label = { AppText("Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(dxvk, { dxvk = it }, label = { AppText("DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(vkd3d, { vkd3d = it }, label = { AppText("VKD3D-Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(box64, { box64 = it }, label = { AppText("Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
 
                 HorizontalDivider()
-                Text("3 • Test results", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                OutlinedTextField(resolution, { resolution = it }, label = { Text("Resolution (e.g. 800×600)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(preset, { preset = it }, label = { Text("Graphics settings / preset") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(avgFps, { avgFps = it }, label = { Text("Average FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(minFps, { minFps = it }, label = { Text("Minimum FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(testDuration, { testDuration = it.filter(Char::isDigit).take(6) }, label = { Text("Test duration in seconds (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(deviceTemperature, { deviceTemperature = it.filter { ch -> ch.isDigit() || ch == '.' }.take(6) }, label = { Text("Device temperature °C (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                AppText("3 • Test results", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                OutlinedTextField(resolution, { resolution = it }, label = { AppText("Resolution (e.g. 800×600)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(preset, { preset = it }, label = { AppText("Graphics settings / preset") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(avgFps, { avgFps = it }, label = { AppText("Average FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(minFps, { minFps = it }, label = { AppText("Minimum FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(testDuration, { testDuration = it.filter(Char::isDigit).take(6) }, label = { AppText("Test duration in seconds (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(deviceTemperature, { deviceTemperature = it.filter { ch -> ch.isDigit() || ch == '.' }.take(6) }, label = { AppText("Device temperature °C (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 FlowRowCompat(options = gameOutcomeOptions, selected = outcome, onSelect = { outcome = it })
-                OutlinedTextField(graphicsIssues, { graphicsIssues = it }, label = { Text("Graphics issues (black textures, glitches, etc.)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
-                OutlinedTextField(notes, { notes = it }, label = { Text("Test notes / steps to reproduce *") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
+                OutlinedTextField(graphicsIssues, { graphicsIssues = it }, label = { AppText("Graphics issues (black textures, glitches, etc.)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                OutlinedTextField(notes, { notes = it }, label = { AppText("Test notes / steps to reproduce *") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("4 • Evidence *", fontWeight = FontWeight.Bold)
-                        Text("Attach screenshots or gameplay video showing the result. Do not include private messages, account details, or tokens.", style = MaterialTheme.typography.bodySmall)
+                        AppText("4 • Evidence *", fontWeight = FontWeight.Bold)
+                        AppText("Attach screenshots or gameplay video showing the result. Do not include private messages, account details, or tokens.", style = MaterialTheme.typography.bodySmall)
                         OutlinedButton(onClick = { picker.launch(arrayOf("image/*", "video/*")) }) {
-                            Icon(Icons.Default.AttachFile, null); Spacer(Modifier.width(6.dp)); Text("SELECT PHOTOS / VIDEOS")
+                            Icon(Icons.Default.AttachFile, null); Spacer(Modifier.width(6.dp)); AppText("SELECT PHOTOS / VIDEOS")
                         }
                         evidence.forEachIndexed { index, uri ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(if (context.contentResolver.getType(uri).orEmpty().startsWith("video/")) Icons.Default.Videocam else Icons.Default.Image, null)
-                                Text(uri.lastPathSegment ?: "Evidence ${index + 1}", Modifier.weight(1f), maxLines = 1)
+                                AppText(uri.lastPathSegment ?: "Evidence ${index + 1}", Modifier.weight(1f), maxLines = 1)
                                 IconButton(onClick = { evidence = evidence.toMutableList().apply { removeAt(index) } }) { Icon(Icons.Default.Close, "Remove") }
                             }
                         }
@@ -534,11 +534,11 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 }
                 Button(onClick = { submit() }, enabled = !submitting, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                     if (submitting) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Spacer(Modifier.width(8.dp)); Text(if (submitting) "UPLOADING EVIDENCE…" else "SUBMIT COMMUNITY RESULT")
+                    Spacer(Modifier.width(8.dp)); AppText(if (submitting) "UPLOADING EVIDENCE…" else "SUBMIT COMMUNITY RESULT")
                 }
             }
         } else {
-            OutlinedTextField(search, { search = it }, label = { Text("Search game, GPU, driver, or emulator") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true)
+            OutlinedTextField(search, { search = it }, label = { AppText("Search game, GPU, driver, or emulator") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true)
             val filtered = reports.filter { report ->
                 (gpuFilter == "All GPUs" || report.gpuFamily == gpuFilter) &&
                     (driverFilter == "Any driver" || report.driverType == driverFilter) &&
@@ -577,11 +577,11 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text("Game library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("${gameGroups.size} games • ${filtered.size} test reports", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppText("Game library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        AppText("${gameGroups.size} games • ${filtered.size} test reports", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (filtered.count { it.reviewStatus == "verified" } > 0) {
-                        AssistChip(onClick = { sortBy = "Verified first" }, label = { Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(4.dp)); Text("${filtered.count { it.reviewStatus == "verified" }} verified") })
+                        AssistChip(onClick = { sortBy = "Verified first" }, label = { Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(4.dp)); AppText("${filtered.count { it.reviewStatus == "verified" }} verified") })
                     }
                 }
                 LazyVerticalGrid(
@@ -596,7 +596,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     }
                     if (gameGroups.isEmpty() && !loading) {
                         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-                            Text("No matching games yet. Add a result with a cover image and gameplay evidence to start the library.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp))
+                            AppText("No matching games yet. Add a result with a cover image and gameplay evidence to start the library.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp))
                         }
                     }
                     gridItems(gameGroups, key = { it.first().gameName.lowercase(Locale.ROOT) }) { gameReports ->
@@ -630,7 +630,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                                         shape = RoundedCornerShape(20.dp),
                                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
                                     ) {
-                                        Text(
+                                        AppText(
                                             if (gameReports.any { it.reviewStatus == "verified" }) "VERIFIED" else "COMMUNITY",
                                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                                             style = MaterialTheme.typography.labelSmall,
@@ -639,14 +639,14 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                                     }
                                 }
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(gameReport.gameName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2)
-                                    Text("${gameReports.size} test(s) • ${gameReports.map { it.gpuFamily }.distinct().size} GPU family", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    AppText(gameReport.gameName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2)
+                                    AppText("${gameReports.size} test(s) • ${gameReports.map { it.gpuFamily }.distinct().size} GPU family", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     val bestFps = gameReports.mapNotNull { it.averageFps }.maxOrNull()
-                                    if (bestFps != null) Text("Best reported: ${"%.1f".format(Locale.US, bestFps)} FPS", style = MaterialTheme.typography.labelMedium)
+                                    if (bestFps != null) AppText("Best reported: ${"%.1f".format(Locale.US, bestFps)} FPS", style = MaterialTheme.typography.labelMedium)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
                                         Spacer(Modifier.width(4.dp))
-                                        Text("OPEN GAME", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                        AppText("OPEN GAME", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -661,8 +661,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 ) {
                     IconButton(onClick = { selectedGame = null }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back to game library") }
                     Column(Modifier.weight(1f)) {
-                        Text(selectedGame.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        Text("${gameReports.size} matching community test(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppText(selectedGame.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        AppText("${gameReports.size} matching community test(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 val coverUrl = coverUrls[selectedGame.orEmpty().trim().lowercase(Locale.ROOT)]
@@ -674,10 +674,10 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 if (systemFps.isNotEmpty() && panvkFps.isNotEmpty()) {
                     Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Driver comparison snapshot", fontWeight = FontWeight.Bold)
-                            Text("System Driver average: ${"%.1f".format(Locale.US, systemFps.average())} FPS")
-                            Text("PanVK average: ${"%.1f".format(Locale.US, panvkFps.average())} FPS")
-                            Text("Community data only. Compare the device, driver build, resolution and settings before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            AppText("Driver comparison snapshot", fontWeight = FontWeight.Bold)
+                            AppText("System Driver average: ${"%.1f".format(Locale.US, systemFps.average())} FPS")
+                            AppText("PanVK average: ${"%.1f".format(Locale.US, panvkFps.average())} FPS")
+                            AppText("Community data only. Compare the device, driver build, resolution and settings before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -686,7 +686,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp)
                 ) {
-                    if (gameReports.isEmpty()) item { Text("No test matches the selected filters. Go back and clear or change a filter.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    if (gameReports.isEmpty()) item { AppText("No test matches the selected filters. Go back and clear or change a filter.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     items(gameReports, key = { it.id }) { report ->
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable { selectedReport = report },
@@ -714,9 +714,9 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                                     }
                                 }
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text("${report.gpuFamily} • ${report.driverType}", fontWeight = FontWeight.Bold)
-                                    Text("${report.emulatorName} ${report.emulatorVersion.orEmpty()} • ${report.outcome}", style = MaterialTheme.typography.bodySmall)
-                                    Text("Avg FPS: ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • ${if (report.reviewStatus == "verified") "Verified" else "Community"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    AppText("${report.gpuFamily} • ${report.driverType}", fontWeight = FontWeight.Bold)
+                                    AppText("${report.emulatorName} ${report.emulatorVersion.orEmpty()} • ${report.outcome}", style = MaterialTheme.typography.bodySmall)
+                                    AppText("Avg FPS: ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • ${if (report.reviewStatus == "verified") "Verified" else "Community"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Icon(Icons.Default.ChevronRight, contentDescription = "Open test details")
                             }
@@ -740,8 +740,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Test report details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            Text(report.gameName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            AppText("Test report details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            AppText(report.gameName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         IconButton(onClick = { selectedReport = null }) { Icon(Icons.Default.Close, contentDescription = "Close report") }
                     }
@@ -751,35 +751,35 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     }
                     AssistChip(
                         onClick = {},
-                        label = { Text(if (report.reviewStatus == "verified") "VERIFIED TEST" else if (report.evidenceReviewed) "EVIDENCE REVIEWED" else "COMMUNITY REPORT") }
+                        label = { AppText(if (report.reviewStatus == "verified") "VERIFIED TEST" else if (report.evidenceReviewed) "EVIDENCE REVIEWED" else "COMMUNITY REPORT") }
                     )
-                    Text("${report.gpuFamily} • ${report.driverType} • ${report.emulatorName} ${report.emulatorVersion.orEmpty()}", fontWeight = FontWeight.SemiBold)
-                    Text("Result: ${report.outcome}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Text("Device: ${report.deviceModel ?: "not provided"} • SoC: ${report.soc ?: "not provided"}")
-                    Text("Driver build: ${report.driverVersion ?: "—"} • Android: ${report.androidVersion ?: "—"}")
-                    Text("Game version: ${report.gameVersion ?: "—"} • Resolution: ${report.resolution ?: "—"} • Preset: ${report.graphicsPreset ?: "—"}")
-                    Text("FPS: avg ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • min ${report.minimumFps?.let { "%.1f".format(Locale.US, it) } ?: "—"}")
-                    Text("Duration: ${report.testDurationSeconds?.let { "$it s" } ?: "—"} • Temperature: ${report.deviceTemperatureC?.let { "$it °C" } ?: "—"}")
-                    Text("Wine ${report.wineVersion ?: "—"} • DXVK ${report.dxvkVersion ?: "—"} • VKD3D ${report.vkd3dVersion ?: "—"} • Box64 ${report.box64Version ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                    if (!report.graphicsIssues.isNullOrBlank()) Text("Graphics issues: ${report.graphicsIssues}")
-                    Text("Test notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Text(report.notes)
-                    Text("${report.evidencePaths.size} evidence file(s) • ${report.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("${report.gpuFamily} • ${report.driverType} • ${report.emulatorName} ${report.emulatorVersion.orEmpty()}", fontWeight = FontWeight.SemiBold)
+                    AppText("Result: ${report.outcome}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    AppText("Device: ${report.deviceModel ?: "not provided"} • SoC: ${report.soc ?: "not provided"}")
+                    AppText("Driver build: ${report.driverVersion ?: "—"} • Android: ${report.androidVersion ?: "—"}")
+                    AppText("Game version: ${report.gameVersion ?: "—"} • Resolution: ${report.resolution ?: "—"} • Preset: ${report.graphicsPreset ?: "—"}")
+                    AppText("FPS: avg ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • min ${report.minimumFps?.let { "%.1f".format(Locale.US, it) } ?: "—"}")
+                    AppText("Duration: ${report.testDurationSeconds?.let { "$it s" } ?: "—"} • Temperature: ${report.deviceTemperatureC?.let { "$it °C" } ?: "—"}")
+                    AppText("Wine ${report.wineVersion ?: "—"} • DXVK ${report.dxvkVersion ?: "—"} • VKD3D ${report.vkd3dVersion ?: "—"} • Box64 ${report.box64Version ?: "—"}", style = MaterialTheme.typography.bodySmall)
+                    if (!report.graphicsIssues.isNullOrBlank()) AppText("Graphics issues: ${report.graphicsIssues}")
+                    AppText("Test notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    AppText(report.notes)
+                    AppText("${report.evidencePaths.size} evidence file(s) • ${report.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     report.evidencePaths.forEachIndexed { index, path ->
                         OutlinedButton(onClick = { openEvidence(path) }, modifier = Modifier.fillMaxWidth()) {
                             Icon(if (path.substringBefore('?').lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") || it.endsWith(".m4v") }) Icons.Default.PlayCircle else Icons.Default.Image, null)
                             Spacer(Modifier.width(6.dp))
-                            Text("OPEN EVIDENCE ${index + 1}")
+                            AppText("OPEN EVIDENCE ${index + 1}")
                         }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { selectedReport = null; openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); Text("DISCUSS") }
-                        TextButton(onClick = { saveConfiguration(report); selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); Text("SAVE CONFIG") }
+                        TextButton(onClick = { selectedReport = null; openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); AppText("DISCUSS") }
+                        TextButton(onClick = { saveConfiguration(report); selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); AppText("SAVE CONFIG") }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { translateReportId = if (translateReportId == report.id) null else report.id }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Translate, null); Spacer(Modifier.width(3.dp)); Text("TRANSLATE") }
-                        if (report.userId != userId) TextButton(onClick = { reportToFlag = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Flag, null); Spacer(Modifier.width(3.dp)); Text("REPORT") }
-                        if (report.userId == userId) TextButton(onClick = { deleteReportTarget = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(3.dp)); Text("DELETE") }
+                        TextButton(onClick = { translateReportId = if (translateReportId == report.id) null else report.id }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Translate, null); Spacer(Modifier.width(3.dp)); AppText("TRANSLATE") }
+                        if (report.userId != userId) TextButton(onClick = { reportToFlag = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Flag, null); Spacer(Modifier.width(3.dp)); AppText("REPORT") }
+                        if (report.userId == userId) TextButton(onClick = { deleteReportTarget = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(3.dp)); AppText("DELETE") }
                     }
                     if (translateReportId == report.id) {
                         TranslateReportText(
@@ -787,7 +787,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                             appLanguage = context.getSharedPreferences("gmailgpu_settings", 0).getString("app_language", "system") ?: "system"
                         )
                     }
-                    Text("Review the device and graphics settings before comparing FPS. Community results are not controlled benchmarks.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("Review the device and graphics settings before comparing FPS. Community results are not controlled benchmarks.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -807,7 +807,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             ) {
                 Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (previewVideo) "Gameplay evidence" else "Screenshot evidence", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                        AppText(if (previewVideo) "Gameplay evidence" else "Screenshot evidence", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                         IconButton(onClick = { previewUrl = null }) { Icon(Icons.Default.Close, contentDescription = "Close preview") }
                     }
                     AndroidView(
@@ -825,10 +825,10 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                         OutlinedButton(onClick = {
                             runCatching { uriHandler.openUri(url) }
                                 .onFailure { error = "Could not open evidence externally: ${it.message}" }
-                        }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); Text("OPEN EXTERNALLY") }
-                        Button(onClick = { previewUrl = null }, modifier = Modifier.weight(1f)) { Text("DONE") }
+                        }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); AppText("OPEN EXTERNALLY") }
+                        Button(onClick = { previewUrl = null }, modifier = Modifier.weight(1f)) { AppText("DONE") }
                     }
-                    Text("Evidence is from a community submission. Review the test conditions before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("Evidence is from a community submission. Review the test conditions before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -838,9 +838,9 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { duplicateReport = null },
             icon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
-            title = { Text("Similar test already exists") },
+            title = { AppText("Similar test already exists") },
             text = {
-                Text("A report for ${duplicate.gameName} • ${duplicate.gpuFamily} • ${duplicate.driverType} on ${duplicate.deviceModel ?: "an unspecified device"} already exists. Open the existing report or submit this run as a new result if the test conditions/version are different.")
+                AppText("A report for ${duplicate.gameName} • ${duplicate.gpuFamily} • ${duplicate.driverType} on ${duplicate.deviceModel ?: "an unspecified device"} already exists. Open the existing report or submit this run as a new result if the test conditions/version are different.")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -849,10 +849,10 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     driverFilter = duplicate.driverType
                     duplicateReport = null
                     showForm = false
-                }) { Text("FIND EXISTING") }
+                }) { AppText("FIND EXISTING") }
             },
             dismissButton = {
-                TextButton(onClick = { duplicateReport = null; submit(forceDuplicate = true) }) { Text("SUBMIT NEW TEST") }
+                TextButton(onClick = { duplicateReport = null; submit(forceDuplicate = true) }) { AppText("SUBMIT NEW TEST") }
             }
         )
     }
@@ -860,30 +860,30 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     discussionReport?.let { report ->
         AlertDialog(
             onDismissRequest = { discussionReport = null },
-            title = { Text("Discussion • ${report.gameName}") },
+            title = { AppText("Discussion • ${report.gameName}") },
             text = {
                 Column(
                     Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Ask about the test setup or share a reproducible finding. Keep comments respectful and do not post passwords or tokens.", style = MaterialTheme.typography.bodySmall)
+                    AppText("Ask about the test setup or share a reproducible finding. Keep comments respectful and do not post passwords or tokens.", style = MaterialTheme.typography.bodySmall)
                     if (discussionLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (discussions.isEmpty() && !discussionLoading) Text("No comments yet. Start the discussion.")
+                    if (discussions.isEmpty() && !discussionLoading) AppText("No comments yet. Start the discussion.")
                     discussions.forEach { comment ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                             Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(comment.username, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
-                                    Text(comment.createdAt.orEmpty().take(10), style = MaterialTheme.typography.labelSmall)
+                                    AppText(comment.username, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                                    AppText(comment.createdAt.orEmpty().take(10), style = MaterialTheme.typography.labelSmall)
                                 }
-                                Text(comment.body)
+                                AppText(comment.body)
                             }
                         }
                     }
                     OutlinedTextField(
                         value = discussionDraft,
                         onValueChange = { discussionDraft = it.take(2000) },
-                        label = { Text("Add a comment") },
+                        label = { AppText("Add a comment") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2,
                         maxLines = 4
@@ -891,10 +891,10 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { postDiscussion() }, enabled = discussionDraft.isNotBlank() && !discussionLoading) { Text("POST COMMENT") }
+                TextButton(onClick = { postDiscussion() }, enabled = discussionDraft.isNotBlank() && !discussionLoading) { AppText("POST COMMENT") }
             },
             dismissButton = {
-                TextButton(onClick = { discussionReport = null }) { Text("CLOSE") }
+                TextButton(onClick = { discussionReport = null }) { AppText("CLOSE") }
             }
         )
     }
@@ -903,13 +903,13 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { reportToFlag = null },
             icon = { Icon(Icons.Default.Flag, contentDescription = null) },
-            title = { Text("Report a community result") },
-            text = { Text("Send this result to moderators for review because the result may be misleading. Please use report flags responsibly; do not include private information.") },
+            title = { AppText("Report a community result") },
+            text = { AppText("Send this result to moderators for review because the result may be misleading. Please use report flags responsibly; do not include private information.") },
             confirmButton = {
-                TextButton(onClick = { reportToFlag = null; flagReport(report) }) { Text("SEND TO MODERATORS") }
+                TextButton(onClick = { reportToFlag = null; flagReport(report) }) { AppText("SEND TO MODERATORS") }
             },
             dismissButton = {
-                TextButton(onClick = { reportToFlag = null }) { Text("CANCEL") }
+                TextButton(onClick = { reportToFlag = null }) { AppText("CANCEL") }
             }
         )
     }
@@ -918,13 +918,13 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { deleteReportTarget = null },
             icon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
-            title = { Text("Delete your test report?") },
-            text = { Text("This removes your community test and its evidence from the compatibility database. Related comments and watch alerts are removed by database relationships; saved configurations keep their copied settings.") },
+            title = { AppText("Delete your test report?") },
+            text = { AppText("This removes your community test and its evidence from the compatibility database. Related comments and watch alerts are removed by database relationships; saved configurations keep their copied settings.") },
             confirmButton = {
-                TextButton(onClick = { deleteOwnReport(report) }) { Text("DELETE REPORT") }
+                TextButton(onClick = { deleteOwnReport(report) }) { AppText("DELETE REPORT") }
             },
             dismissButton = {
-                TextButton(onClick = { deleteReportTarget = null }) { Text("CANCEL") }
+                TextButton(onClick = { deleteReportTarget = null }) { AppText("CANCEL") }
             }
         )
     }
@@ -959,18 +959,18 @@ private fun TranslateReportText(original: String, appLanguage: String) {
 
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Translated notes • ${when (resolved) { "ar" -> "Arabic"; "pt-BR" -> "Portuguese (Brazil)"; else -> "English / device default" }}", fontWeight = FontWeight.SemiBold)
+            AppText("Translated notes • ${when (resolved) { "ar" -> "Arabic"; "pt-BR" -> "Portuguese (Brazil)"; else -> "English / device default" }}", fontWeight = FontWeight.SemiBold)
             when {
-                target == null -> Text("Choose Arabic or Portuguese in Settings to translate report notes.", style = MaterialTheme.typography.bodySmall)
-                translated != null -> Text(translated!!, style = MaterialTheme.typography.bodyMedium)
-                failed -> Text("Translation could not be downloaded. The original report remains available.", style = MaterialTheme.typography.bodySmall)
+                target == null -> AppText("Choose Arabic or Portuguese in Settings to translate report notes.", style = MaterialTheme.typography.bodySmall)
+                translated != null -> AppText(translated!!, style = MaterialTheme.typography.bodyMedium)
+                failed -> AppText("Translation could not be downloaded. The original report remains available.", style = MaterialTheme.typography.bodySmall)
                 else -> Row(verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
-                    Text("Preparing offline translation model…", style = MaterialTheme.typography.bodySmall)
+                    AppText("Preparing offline translation model…", style = MaterialTheme.typography.bodySmall)
                 }
             }
-            Text("Machine translation may alter technical nuance; preserve exact error codes and version strings.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppText("Machine translation may alter technical nuance; preserve exact error codes and version strings.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -981,7 +981,7 @@ private fun FlowRowCompat(options: List<String>, selected: String, onSelect: (St
         options.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { option ->
-                    FilterChip(selected = selected == option, onClick = { onSelect(option) }, label = { Text(option) })
+                    FilterChip(selected = selected == option, onClick = { onSelect(option) }, label = { AppText(option) })
                 }
             }
         }

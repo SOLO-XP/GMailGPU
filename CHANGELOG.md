@@ -1,5 +1,13 @@
 # Changelog
 
+## 🌐 0.3.3 Beta — UI Translation & Issue Update Hotfix
+
+- Extended the translation-aware text component to support the full Material text API and reused it across Community Game Lab and Game Compatibility Library.
+- Game Lab and Compatibility Library screen titles, cards, filters, dialogs, fields, and action labels now respond to the selected language (English, Arabic, Brazilian Portuguese, or device language).
+- Added a least-privilege issue-update permission migration for the signed-in role; existing row-level policies continue to restrict update access.
+- Added repository-side session checks to prevent sending issue PATCH requests with only the public API key when no signed-in user session is present.
+- Updated the APK workflow and package version to 0.3.3-beta (versionCode 18).
+
 ## 🎮 0.3.2 Beta — Cover-First Game Library
 
 - Replaced the long report feed with a searchable two-column game gallery using square cover thumbnails.
