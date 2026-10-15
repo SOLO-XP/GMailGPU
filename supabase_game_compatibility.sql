@@ -61,6 +61,13 @@ create policy "Update own community game report"
   using (user_id = auth.uid() and review_status = 'community')
   with check (user_id = auth.uid() and review_status = 'community');
 
+drop policy if exists "Admins review game reports" on public.game_compatibility_reports;
+create policy "Admins review game reports"
+  on public.game_compatibility_reports for update
+  to authenticated
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role::text = 'admin'))
+  with check (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role::text = 'admin'));
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('game-evidence', 'game-evidence', false, 157286400, array['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'])
 on conflict (id) do update set
