@@ -31,6 +31,10 @@ The Firebase service account must belong to the Firebase project used in the And
 
 The app's Android API 33+ notification permission must be granted on the device. If Firebase is not configured, chat messages and database/in-app notifications remain available, but push while the app is backgrounded will not be delivered.
 
-## 4. Online/offline meaning
+## 4. Build and test the Android app
+
+After adding all four Firebase client values as GitHub Actions repository secrets, trigger a fresh **Build GMailGPU APK** run on the `feat/chat-notifications-online-presence` branch. The Firebase client values are embedded at build time, so an APK built before those secrets were added will not register an FCM token. Download the `GMailGPU-v0.3.4-beta` artifact from the successful workflow run, install it on test devices, sign in, and grant Android notification permission. Send a chat reply while the recipient app is in the background to verify push delivery. This is a test artifact, not a public GitHub Release.
+
+## 5. Online/offline meaning
 
 GMailGPU reports a user as online only while the app is active and has checked in recently. The status expires after a short stale window if the device loses connection or the app is force-stopped. "Offline" means no recent check-in; it does not prove the person is unavailable.
