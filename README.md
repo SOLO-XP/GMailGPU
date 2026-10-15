@@ -5,10 +5,10 @@
 </p>
 
 <p align="center">
-  <img alt="Next update coming soon" src="https://img.shields.io/badge/NEXT%20UPDATE-COMING%20SOON-FF9F1C?style=for-the-badge">
+  <img alt="Version 0.3.4 Beta coming soon" src="https://img.shields.io/badge/0.3.4%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
 </p>
 
-> 🚧 **COMING SOON — not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. The currently listed release remains the last published version until the new APK is ready.
+> 🚧 **COMING SOON — 0.3.4 Beta is not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. Version 0.3.3 Beta remains the latest published version until 0.3.4 Beta is released.
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
@@ -24,7 +24,7 @@
 
 ---
 
-## 🚧 Coming soon in the next update
+## 🚧 Coming soon: 0.3.4 Beta
 
 - 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
 - 🟢 Online/offline and last-seen status for the user and developer team.
