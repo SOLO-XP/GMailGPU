@@ -57,7 +57,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $g57_auto_close$
 declare
   closed_count integer;
 begin
@@ -70,7 +70,7 @@ begin
   get diagnostics closed_count = row_count;
   return closed_count;
 end;
-$;
+$g57_auto_close$;
 
 -- Only the trusted cron/database owner may execute the global auto-close function.
 revoke all on function public.auto_close_unattended_issues() from public, anon, authenticated;
@@ -81,7 +81,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $g57_notify$
 begin
   if (new.status in ('fixed','closed')) and (old.status not in ('fixed','closed')) then
     if new.status = 'closed' and new.developer_note like 'Closed automatically:%' then
@@ -104,7 +104,7 @@ begin
   end if;
   return new;
 end;
-$$;
+$g57_notify$;
 
 -- Enable pg_cron in Supabase first if it is not already enabled.
 create extension if not exists pg_cron with schema pg_catalog;
