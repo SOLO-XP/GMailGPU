@@ -245,7 +245,9 @@ begin
   get diagnostics closed_count = row_count;
   return closed_count;
 end;
-$g57_auto_close$;create or replace function public.notify_issue_resolved()
+$g57_auto_close$;revoke all on function public.auto_close_unattended_issues() from public, anon, authenticated;
+
+create or replace function public.notify_issue_resolved()
 returns trigger
 language plpgsql
 security definer
