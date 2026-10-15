@@ -109,7 +109,6 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             message: {
               token: item.token,
-              notification: { title, body: notificationBody },
               data: {
                 issue_id: String(issue.id),
                 message_id: String(message.id),
