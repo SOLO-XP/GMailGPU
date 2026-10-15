@@ -13,7 +13,7 @@
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Version 0.3.3 Beta" src="https://img.shields.io/badge/Version-0.3.3%20Beta-0EA5E9">
+  <img alt="Current public release 0.3.3 Beta" src="https://img.shields.io/badge/CURRENT%20RELEASE-0.3.3%20Beta-0EA5E9">
   <img alt="Mali GPUs" src="https://img.shields.io/badge/Mali-G52%20%7C%20G57%20%7C%20G615%20%7C%20G720-111827">
   <img alt="Community driven" src="https://img.shields.io/badge/Community-Driven-8B5CF6">
 </p>
@@ -24,8 +24,11 @@
 
 ---
 
-## 🚧 Coming soon: 0.3.4 Beta
+## 🚧 Coming soon: 0.3.4 Beta — complete feature list
 
+**The features listed in this section are planned for 0.3.4 Beta. They are not part of the currently published APK and are not available for download yet.**
+
+### Chat, alerts, and presence
 - 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
 - 🟢 Online/offline and last-seen status for the user and developer team.
 - 👀 Separate Sent, Delivered, and Read message indicators.
@@ -34,30 +37,35 @@
 - ⭐ An “important reply” flag so important-only alert mode has an explicit signal to use.
 - 📲 Optional Android push alerts while the app is in the background, after notification and messaging service setup is complete.
 
-**This update has not been published yet.** The features above are planned for the next beta; availability will be announced after the APK build and required server setup are verified.
-
----
-
-## ✨ What's new in 0.3.3 Beta
-
+### Community Game Lab and compatibility tools
 - 🧭 **Community Game Lab** — a single place for game discovery, saved settings, troubleshooting, tester profiles, statistics, and community tools.
 - 🕹️ **Cover-first game gallery** — browse square game-art cards, open a game, then select a specific test to view its details, evidence, and discussion.
-- 🌐 **Wider UI translation coverage** — the Game Lab and Compatibility Library screen labels, forms, filters, dialogs, and buttons now use the same language-aware text system as the rest of the app.
-- 🛡️ **Issue-update permission hotfix** — adds a least-privilege SQL migration for signed-in issue updates and blocks status PATCH requests when the sign-in session is missing.
-- 🖼️ **Required game cover artwork** — contributors choose a cover image from their device; it stays separate from gameplay screenshots and video evidence.
+- 🌐 **Wider UI translation coverage** — the Game Lab and Compatibility Library screen labels, forms, filters, dialogs, and buttons use the language-aware text system.
+- 🖼️ **Game cover artwork** — contributors choose a cover image separately from gameplay screenshots and video evidence.
 - 🔎 **Smarter compatibility search** — filter community tests by game, Mali GPU, driver, device, emulator, outcome, and benchmark data.
 - ⚖️ **System Driver vs PanVK comparisons** — compare reported FPS and graphics issues while keeping sample size and test conditions visible.
 - 🔔 **Game Watchlist** — follow games and receive in-app alerts when a matching test is added.
 - 🧰 **Saved configurations** — keep or share game settings, including driver, emulator, Wine, DXVK, VKD3D-Proton, Box64, resolution, and graphics preset.
-- 🗒️ **Local Diagnostic Log Analyzer** — spot common Vulkan, memory, crash, DXVK/VKD3D, and graphics error patterns on your device.
-- 🧑‍⚖️ **Evidence review tools** — reviewers can examine evidence and distinguish community submissions, evidence-reviewed reports, and verified tests.
-- 🖼️ **Evidence gallery & game discussions** — preview attached images/videos, discuss a specific result, and report questionable entries.
-- 🧪 **Benchmark improvements** — optional test duration and device temperature, advanced sorting, duplicate warnings, and cautious regression signals.
-- 👤 **Tester profiles & contribution badges** — opt in to a public profile and highlight useful, evidence-backed contributions.
-- 📊 **Community statistics & PDF export** — explore test coverage by GPU and share a report summary.
-- 🔄 **Driver Update Tracker** — check linked projects for their latest published GitHub Releases.
 - 📴 **Offline reference** — revisit the most recently cached community results when the connection is unavailable.
+- 🔄 **Driver Update Tracker** — check linked projects for their latest published GitHub Releases.
+
+### Diagnostics, evidence, and community
+- 🗒️ **Local Diagnostic Log Analyzer** — spot common Vulkan, memory, crash, DXVK/VKD3D, and graphics error patterns on your device.
 - 🛠️ **Guided troubleshooting** — follow a checklist for black screens, broken textures, Vulkan errors, crashes, low FPS, and memory problems, then prepare a focused bug report.
+- 🧑‍⚖️ **Evidence review tools** — reviewers can examine evidence and distinguish community submissions, evidence-reviewed reports, and verified tests.
+- 🖼️ **Evidence gallery and game discussions** — preview attached images/videos, discuss a specific result, and report questionable entries.
+- 🧪 **Benchmark improvements** — optional test duration and device temperature, advanced sorting, duplicate warnings, and cautious regression signals.
+- 👤 **Tester profiles and contribution badges** — opt in to a public profile and highlight useful, evidence-backed contributions.
+- 📊 **Community statistics and PDF export** — explore test coverage by GPU and share a report summary.
+
+### Security, permissions, and usability
+- 🛡️ **Issue-update permission improvements** — least-privilege SQL policies and signed-in session checks for issue updates.
+- 🌐 **Expanded language support** — language-aware labels, forms, filters, dialogs, and buttons across the app.
+- 🧪 **Safer report and test submission flow** — keep cover artwork separate from evidence and make test details easier to review.
+
+**Release status:** 0.3.3 Beta remains the current public release. Version 0.3.4 Beta is still **COMING SOON** and will be announced only after the APK and required server setup are verified.
+
+---
 
 ## 🎮 Explore the community tools
 
