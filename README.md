@@ -8,7 +8,7 @@
   <img alt="Next update coming soon" src="https://img.shields.io/badge/NEXT%20UPDATE-COMING%20SOON-FF9F1C?style=for-the-badge">
 </p>
 
-> 🚧 **COMING SOON — not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, and direct navigation from notifications. The currently listed release remains the last published version until the new APK is ready.
+> 🚧 **COMING SOON — not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. The currently listed release remains the last published version until the new APK is ready.
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
@@ -28,6 +28,10 @@
 
 - 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
 - 🟢 Online/offline and last-seen status for the user and developer team.
+- 👀 Separate Sent, Delivered, and Read message indicators.
+- ✍️ A short-lived “Typing…” indicator while the other participant is composing a reply.
+- 🎛️ Per-issue alert settings: all replies, important replies only, or mute without deleting messages.
+- ⭐ An “important reply” flag so important-only alert mode has an explicit signal to use.
 - 📲 Optional Android push alerts while the app is in the background, after notification and messaging service setup is complete.
 
 **This update has not been published yet.** The features above are planned for the next beta; availability will be announced after the APK build and required server setup are verified.
