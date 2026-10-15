@@ -141,17 +141,27 @@ class G57Repository {
     suspend fun createIssue(input: CreateIssueInput): Issue =
         sb.from("issues").insert(input) { select() }.decodeSingle()
 
+    private fun requireSignedInSession() {
+        check(sb.auth.currentUserOrNull() != null) {
+            "Your sign-in session is missing or expired. Sign out and sign in again before changing this issue."
+        }
+    }
+
     suspend fun updateStatus(issueId: String, status: String) {
+        requireSignedInSession()
         sb.from("issues").update(buildJsonObject { put("status", status) }) { filter { eq("id", issueId) } }
     }
 
     suspend fun markIssueViewedByAdmin(issueId: String) {
+        // This is a quiet, best-effort timestamp. Never send a PATCH with the public API key alone.
+        if (sb.auth.currentUserOrNull() == null) return
         sb.from("issues").update(buildJsonObject {
             put("last_admin_viewed_at", java.time.Instant.now().toString())
         }) { filter { eq("id", issueId) } }
     }
 
     suspend fun reopenOwnIssue(issueId: String) {
+        requireSignedInSession()
         sb.from("issues").update(buildJsonObject { put("status", "open") }) {
             filter {
                 eq("id", issueId)
@@ -161,6 +171,7 @@ class G57Repository {
     }
 
     suspend fun updateDeveloperNote(issueId: String, note: String) {
+        requireSignedInSession()
         sb.from("issues").update(buildJsonObject { put("developer_note", note) }) { filter { eq("id", issueId) } }
     }
 
