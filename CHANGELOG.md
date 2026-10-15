@@ -1,5 +1,14 @@
 # Changelog
 
+## 🎮 0.3.2 Beta — Cover-First Game Library
+
+- Replaced the long report feed with a searchable two-column game gallery using square cover thumbnails.
+- New community test submissions require a game cover selected from the device and separate screenshot/video evidence.
+- Tapping a game opens its community test list; tapping a test opens its detailed report, evidence links, test conditions, and discussion actions.
+- Added an in-game System Driver vs PanVK summary using submitted FPS results, with a reminder that community tests are not controlled benchmarks.
+- Added game cover cleanup when a report owner deletes their report.
+- Added a one-time, rerunnable data migration for the new cover image field.
+
 ## 🚀 0.3.1 Beta — Community Game Lab Update
 
 - Added Community Game Lab hub, advanced game finder filters, and System Driver vs PanVK comparison cards.
@@ -12,7 +21,6 @@
 - Added tester profiles, contribution badges, public tester highlights, community statistics, and PDF export.
 - Added driver GitHub Release tracker and offline cache for the latest community reports and saved configurations.
 - Added optional ML Kit translation for report notes. Technical error codes and the original report remain available.
-- Added `supabase_game_lab_features.sql`; run it after `supabase_game_compatibility.sql`.
 
 ## 0.3 Beta — Complete Mali Community Toolkit
 

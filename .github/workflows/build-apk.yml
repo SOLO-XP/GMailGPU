@@ -111,12 +111,12 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           echo "Checking package name and version..."
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
-          grep -F "package: name='com.g57.issuehub' versionCode='16' versionName='0.3.1-beta'" apk-badging.txt
+          grep -F "package: name='com.g57.issuehub' versionCode='17' versionName='0.3.2-beta'" apk-badging.txt
           sha256sum "$APK" | tee app-debug.apk.sha256
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
           {
             echo "### Verified GMailGPU APK"
-            echo "- Version: 0.3.1-beta (16)"
+            echo "- Version: 0.3.2-beta (17)"
             echo "- APK size: $(stat -c '%s bytes' "$APK")"
             echo "- APK signature: passed"
             echo "- SHA-256: `$SHA256`"
@@ -125,7 +125,7 @@ jobs:
       - name: Upload verified APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: GMailGPU-v0.3.1-beta
+          name: GMailGPU-v0.3.2-beta
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app-debug.apk.sha256

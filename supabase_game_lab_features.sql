@@ -3,6 +3,7 @@
 -- Safe to run again: tables, columns, policies, triggers and indexes are idempotent.
 
 alter table public.game_compatibility_reports
+  add column if not exists game_image_path text,
   add column if not exists test_duration_seconds integer,
   add column if not exists device_temperature_c numeric(5,2),
   add column if not exists evidence_reviewed boolean not null default false,

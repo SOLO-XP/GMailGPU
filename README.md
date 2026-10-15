@@ -7,7 +7,7 @@
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Version 0.3.1 Beta" src="https://img.shields.io/badge/Version-0.3.1%20Beta-0EA5E9">
+  <img alt="Version 0.3.2 Beta" src="https://img.shields.io/badge/Version-0.3.2%20Beta-0EA5E9">
   <img alt="Mali GPUs" src="https://img.shields.io/badge/Mali-G52%20%7C%20G57%20%7C%20G615%20%7C%20G720-111827">
   <img alt="Community driven" src="https://img.shields.io/badge/Community-Driven-8B5CF6">
 </p>
@@ -18,9 +18,11 @@
 
 ---
 
-## ✨ What's new in 0.3.1 Beta
+## ✨ What's new in 0.3.2 Beta
 
 - 🧭 **Community Game Lab** — a single place for game discovery, saved settings, troubleshooting, tester profiles, statistics, and community tools.
+- 🕹️ **Cover-first game gallery** — browse square game-art cards, open a game, then select a specific test to view its details, evidence, and discussion.
+- 🖼️ **Required game cover artwork** — contributors choose a cover image from their device; it stays separate from gameplay screenshots and video evidence.
 - 🔎 **Smarter compatibility search** — filter community tests by game, Mali GPU, driver, device, emulator, outcome, and benchmark data.
 - ⚖️ **System Driver vs PanVK comparisons** — compare reported FPS and graphics issues while keeping sample size and test conditions visible.
 - 🔔 **Game Watchlist** — follow games and receive in-app alerts when a matching test is added.

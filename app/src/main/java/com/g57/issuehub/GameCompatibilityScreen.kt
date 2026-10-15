@@ -6,8 +6,13 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
@@ -21,12 +26,15 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.g57.issuehub.data.SupabaseProvider
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
@@ -55,6 +63,7 @@ private data class GameCompatibilityReport(
     val username: String,
     @SerialName("game_name") val gameName: String,
     @SerialName("game_version") val gameVersion: String? = null,
+    @SerialName("game_image_path") val gameImagePath: String? = null,
     @SerialName("gpu_family") val gpuFamily: String,
     @SerialName("device_model") val deviceModel: String? = null,
     val soc: String? = null,
@@ -119,6 +128,9 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var isAdmin by remember { mutableStateOf(false) }
     var previewUrl by remember { mutableStateOf<String?>(null) }
     var previewVideo by remember { mutableStateOf(false) }
+    var coverUrls by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var selectedGame by remember { mutableStateOf<String?>(null) }
+    var selectedReport by remember { mutableStateOf<GameCompatibilityReport?>(null) }
     var duplicateReport by remember { mutableStateOf<GameCompatibilityReport?>(null) }
     var discussionReport by remember { mutableStateOf<GameCompatibilityReport?>(null) }
     var discussions by remember { mutableStateOf(emptyList<GameDiscussion>()) }
@@ -151,8 +163,12 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var graphicsIssues by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var evidence by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var gameCover by remember { mutableStateOf<Uri?>(null) }
     var showForm by remember { mutableStateOf(false) }
 
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        gameCover = uri
+    }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         evidence = (evidence + uris).distinct().take(6)
         error = if (uris.size + evidence.size > 6) "A maximum of 6 evidence files is allowed." else null
@@ -194,6 +210,19 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             isAdmin = profile.role.equals("admin", true)
         }
         refresh()
+    }
+
+    LaunchedEffect(reports) {
+        val coverPaths = reports
+            .filter { !it.gameImagePath.isNullOrBlank() }
+            .groupBy { it.gameName.trim().lowercase(Locale.ROOT) }
+            .mapNotNull { (key, gameReports) -> gameReports.firstNotNullOfOrNull { it.gameImagePath }?.let { key to it } }
+        val links = mutableMapOf<String, String>()
+        coverPaths.forEach { (key, path) ->
+            runCatching { client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = 20.minutes) }
+                .onSuccess { links[key] = it }
+        }
+        coverUrls = links
     }
 
     fun openEvidence(path: String) {
@@ -294,8 +323,9 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         if (report.userId != userId) { error = "You can delete only your own test reports."; return }
         scope.launch {
             runCatching {
-                if (report.evidencePaths.isNotEmpty()) {
-                    client.storage.from("game-evidence").delete(*report.evidencePaths.toTypedArray())
+                val filesToDelete = report.evidencePaths + listOfNotNull(report.gameImagePath)
+                if (filesToDelete.isNotEmpty()) {
+                    client.storage.from("game-evidence").delete(*filesToDelete.toTypedArray())
                 }
                 client.from("game_compatibility_reports").delete {
                     filter { eq("id", report.id); eq("user_id", userId) }
@@ -312,6 +342,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     fun submit(forceDuplicate: Boolean = false) {
         if (userId.isBlank()) { error = "Sign in before submitting a community result."; return }
         if (game.isBlank() || notes.isBlank()) { error = "Game name and test notes are required."; return }
+        if (gameCover == null) { error = "Choose a square game cover image from your device before submitting."; return }
         if (evidence.isEmpty()) { error = "Attach at least one screenshot or video as evidence."; return }
         val parsedAvg = avgFps.toDoubleOrNull()
         val parsedMin = minFps.toDoubleOrNull()
@@ -342,7 +373,22 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         scope.launch {
             val id = UUID.randomUUID().toString()
             val uploaded = mutableListOf<String>()
+            val uploadedPathsToCleanup = mutableListOf<String>()
+            var uploadedCoverPath: String? = null
             runCatching {
+                val coverUri = gameCover ?: throw IllegalStateException("A game cover image is required.")
+                val coverMime = context.contentResolver.getType(coverUri).orEmpty()
+                require(coverMime in listOf("image/jpeg", "image/png", "image/webp", "image/gif")) { "Game cover must be JPG, PNG, WEBP, or GIF." }
+                val coverBytes = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(coverUri)?.use { it.readBytes() }
+                        ?: throw IllegalStateException("Could not read the selected game cover.")
+                }
+                require(coverBytes.size <= 20L * 1024L * 1024L) { "Game cover must be 20 MB or smaller." }
+                val coverExtension = when (coverMime) { "image/png" -> "png"; "image/webp" -> "webp"; "image/gif" -> "gif"; else -> "jpg" }
+                val coverPath = "$userId/$id/game_cover.$coverExtension"
+                client.storage.from("game-evidence").upload(coverPath, coverBytes) { upsert = false }
+                uploadedCoverPath = coverPath
+                uploadedPathsToCleanup += coverPath
                 evidence.forEachIndexed { index, uri ->
                     val mime = context.contentResolver.getType(uri).orEmpty()
                     require(mime.startsWith("image/") || mime.startsWith("video/")) { "Only image and video evidence is supported." }
@@ -358,6 +404,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     val path = "$userId/$id/${System.currentTimeMillis()}_$safeName"
                     client.storage.from("game-evidence").upload(path, bytes) { upsert = false }
                     uploaded += path
+                    uploadedPathsToCleanup += path
                 }
                 client.from("game_compatibility_reports").insert(buildJsonObject {
                     put("id", id)
@@ -365,6 +412,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     put("username", username)
                     put("game_name", game.trim())
                     put("game_version", gameVersion.ifBlank { null })
+                    put("game_image_path", uploadedCoverPath)
                     put("gpu_family", gpu)
                     put("device_model", device.ifBlank { null })
                     put("soc", soc.ifBlank { null })
@@ -390,13 +438,13 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 })
             }.onSuccess {
                 notice = "Result submitted. It is labeled as a community report until verified."
-                game = ""; gameVersion = ""; driverVersion = ""; emulatorVersion = ""; wine = ""; dxvk = ""; vkd3d = ""; box64 = ""
+                game = ""; gameVersion = ""; gameCover = null; driverVersion = ""; emulatorVersion = ""; wine = ""; dxvk = ""; vkd3d = ""; box64 = ""
                 resolution = ""; preset = ""; avgFps = ""; minFps = ""; testDuration = ""; deviceTemperature = ""; graphicsIssues = ""; notes = ""; evidence = emptyList()
                 showForm = false
                 refresh()
             }.onFailure {
                 error = "Submission failed: ${it.message ?: "unknown error"}. Check the Supabase migration and Storage policies."
-                runCatching { client.storage.from("game-evidence").delete(*uploaded.toTypedArray()) }
+                runCatching { client.storage.from("game-evidence").delete(*uploadedPathsToCleanup.toTypedArray()) }
             }
             submitting = false
         }
@@ -422,6 +470,23 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("1 • Game and device", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 OutlinedTextField(game, { game = it }, label = { Text("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Text("Game cover art *", fontWeight = FontWeight.SemiBold)
+                Text("Choose the official cover or a square game image from your device. It will appear as a square thumbnail in search.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (gameCover != null) {
+                        AsyncImage(model = gameCover, contentDescription = "Selected game cover", contentScale = ContentScale.Crop, modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp)))
+                    } else {
+                        Box(Modifier.size(104.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.SportsEsports, contentDescription = null, modifier = Modifier.size(38.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(onClick = { coverPicker.launch("image/*") }) {
+                            Icon(Icons.Default.Image, null); Spacer(Modifier.width(6.dp)); Text(if (gameCover == null) "CHOOSE COVER" else "CHANGE COVER")
+                        }
+                        if (gameCover != null) TextButton(onClick = { gameCover = null }) { Text("Remove image") }
+                    }
+                }
                 OutlinedTextField(gameVersion, { gameVersion = it }, label = { Text("Game version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Text("GPU family")
                 FlowRowCompat(options = gameGpuOptions, selected = gpu, onSelect = { gpu = it })
@@ -488,139 +553,241 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     else -> rows.sortedByDescending { it.createdAt.orEmpty() }
                 }
             }
-            val comparisons = filtered.filter { it.averageFps != null }
-                .groupBy { it.gameName.lowercase() to it.gpuFamily }
-                .mapNotNull { (_, rows) ->
-                    val systemRuns = rows.filter { it.driverType == "System Driver" && it.averageFps != null }
-                    val panvkRuns = rows.filter { it.driverType == "PanVK" && it.averageFps != null }
-                    if (systemRuns.isNotEmpty() && panvkRuns.isNotEmpty()) Triple(rows.first(), systemRuns, panvkRuns) else null
-                }.take(4)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (listOf("All GPUs") + gameGpuOptions.filter { it != "Other" }).forEach { option ->
-                    FilterChip(selected = gpuFilter == option, onClick = { gpuFilter = option }, label = { Text(option) })
+            val gameGroups = filtered
+                .groupBy { it.gameName.trim().lowercase(Locale.ROOT) }
+                .values
+                .map { group -> group.sortedByDescending { it.createdAt.orEmpty() } }
+                .sortedWith(
+                    when (sortBy) {
+                        "Highest FPS" -> compareByDescending<List<GameCompatibilityReport>> { group ->
+                            group.mapNotNull { it.averageFps }.maxOrNull() ?: -1.0
+                        }
+                        "Verified first" -> compareByDescending<List<GameCompatibilityReport>> { group ->
+                            group.any { it.reviewStatus == "verified" }
+                        }.thenByDescending { group -> group.maxOfOrNull { it.createdAt.orEmpty() }.orEmpty() }
+                        else -> compareByDescending<List<GameCompatibilityReport>> { group ->
+                            group.maxOfOrNull { it.createdAt.orEmpty() }.orEmpty()
+                        }
+                    }
+                )
+
+            if (selectedGame == null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Game library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("${gameGroups.size} games • ${filtered.size} test reports", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (filtered.count { it.reviewStatus == "verified" } > 0) {
+                        AssistChip(onClick = { sortBy = "Verified first" }, label = { Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(4.dp)); Text("${filtered.count { it.reviewStatus == "verified" }} verified") })
+                    }
                 }
-            }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Any driver", "System Driver", "PanVK", "Other").forEach { option ->
-                    FilterChip(selected = driverFilter == option, onClick = { driverFilter = option }, label = { Text(option) })
-                }
-            }
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (listOf("Any outcome") + gameOutcomeOptions).forEach { option ->
-                    FilterChip(selected = outcomeFilter == option, onClick = { outcomeFilter = option }, label = { Text(option) })
-                }
-            }
-            OutlinedTextField(deviceFilter, { deviceFilter = it }, label = { Text("Optional device-model filter") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), singleLine = true)
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Newest", "Highest FPS", "Verified first").forEach { option ->
-                    FilterChip(selected = sortBy == option, onClick = { sortBy = option }, label = { Text("Sort: $option") })
-                }
-            }
-            LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-                if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-                if (filtered.isEmpty() && !loading) item { Text("No community results yet. Add the first evidence-backed game report.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
-                if (filtered.isNotEmpty()) item {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Community coverage", fontWeight = FontWeight.Bold)
-                            Text("${filtered.size} visible test(s) • ${filtered.map { it.gameName.lowercase() }.distinct().size} game(s) • ${filtered.count { it.reviewStatus == "verified" }} verified")
-                            gameGpuOptions.filter { it != "Other" }.forEach { family ->
-                                val amount = filtered.count { it.gpuFamily == family }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(family, Modifier.width(94.dp), style = MaterialTheme.typography.bodySmall)
-                                    LinearProgressIndicator(progress = { if (filtered.isEmpty()) 0f else amount.toFloat()/filtered.size }, modifier = Modifier.weight(1f).height(6.dp))
-                                    Text(" $amount", style = MaterialTheme.typography.labelSmall)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp, top = 4.dp)
+                ) {
+                    if (loading) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                    }
+                    if (gameGroups.isEmpty() && !loading) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            Text("No matching games yet. Add a result with a cover image and gameplay evidence to start the library.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp))
+                        }
+                    }
+                    gridItems(gameGroups, key = { it.first().gameName.lowercase(Locale.ROOT) }) { gameReports ->
+                        val gameReport = gameReports.first()
+                        val gameKey = gameReport.gameName.trim().lowercase(Locale.ROOT)
+                        val coverUrl = coverUrls[gameKey]
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedGame = gameReport.gameName },
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+                        ) {
+                            Column {
+                                Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
+                                    if (coverUrl != null) {
+                                        AsyncImage(
+                                            model = coverUrl,
+                                            contentDescription = "${gameReport.gameName} cover",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Box(
+                                            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.SportsEsports, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                    Surface(
+                                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                                    ) {
+                                        Text(
+                                            if (gameReports.any { it.reviewStatus == "verified" }) "VERIFIED" else "COMMUNITY",
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text(gameReport.gameName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 2)
+                                    Text("${gameReports.size} test(s) • ${gameReports.map { it.gpuFamily }.distinct().size} GPU family", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    val bestFps = gameReports.mapNotNull { it.averageFps }.maxOrNull()
+                                    if (bestFps != null) Text("Best reported: ${"%.1f".format(Locale.US, bestFps)} FPS", style = MaterialTheme.typography.labelMedium)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.OpenInNew, null, modifier = Modifier.size(15.dp), tint = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("OPEN GAME", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                val regressions = filtered.filter { it.averageFps != null }
-                    // Compare repeated tests only when device, emulator stack, game version,
-                    // resolution and preset match. Driver build is intentionally omitted so
-                    // results from successive builds of the same driver can be compared.
-                    .groupBy { r ->
-                        listOf(
-                            r.gameName.lowercase(), r.gameVersion.orEmpty().lowercase(),
-                            r.gpuFamily, r.driverType, r.deviceModel.orEmpty().lowercase(),
-                            r.soc.orEmpty().lowercase(), r.emulatorName.lowercase(),
-                            r.emulatorVersion.orEmpty().lowercase(), r.wineVersion.orEmpty().lowercase(),
-                            r.dxvkVersion.orEmpty().lowercase(), r.vkd3dVersion.orEmpty().lowercase(),
-                            r.box64Version.orEmpty().lowercase(), r.resolution.orEmpty().lowercase(),
-                            r.graphicsPreset.orEmpty().lowercase()
-                        ).joinToString("|")
+            } else {
+                val gameReports = filtered.filter { it.gameName.equals(selectedGame, ignoreCase = true) }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { selectedGame = null }) { Icon(Icons.Default.ArrowBack, contentDescription = "Back to game library") }
+                    Column(Modifier.weight(1f)) {
+                        Text(selectedGame.orEmpty(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Text("${gameReports.size} matching community test(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    .mapNotNull { (_, runs) ->
-                        val sortedRuns = runs.sortedByDescending { it.createdAt.orEmpty() }
-                        if (sortedRuns.size < 2) null else {
-                            val newer = sortedRuns[0]; val older = sortedRuns[1]
-                            val oldFps = older.averageFps ?: return@mapNotNull null
-                            val newFps = newer.averageFps ?: return@mapNotNull null
-                            if (oldFps <= 0.0 || newFps >= oldFps * 0.90) null else Triple(newer, older, ((oldFps-newFps)/oldFps)*100.0)
-                        }
-                    }.take(3)
-                if (regressions.isNotEmpty()) item {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("Possible performance regressions", fontWeight = FontWeight.Bold)
-                            regressions.forEach { (latest, previous, drop) ->
-                                Text("${latest.gameName} • ${latest.gpuFamily} • ${latest.driverType}: latest FPS ${latest.averageFps}, previously ${previous.averageFps} (about ${"%.0f".format(drop)}% lower).")
-                            }
-                            Text("This is a signal from two community records, not proof that the driver update caused the change.", style = MaterialTheme.typography.bodySmall)
+                }
+                val coverUrl = coverUrls[selectedGame.orEmpty().trim().lowercase(Locale.ROOT)]
+                if (coverUrl != null) {
+                    AsyncImage(model = coverUrl, contentDescription = "${selectedGame} cover", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(150.dp).padding(horizontal = 16.dp).clip(RoundedCornerShape(18.dp)))
+                }
+                val systemFps = gameReports.filter { it.driverType == "System Driver" }.mapNotNull { it.averageFps }
+                val panvkFps = gameReports.filter { it.driverType == "PanVK" }.mapNotNull { it.averageFps }
+                if (systemFps.isNotEmpty() && panvkFps.isNotEmpty()) {
+                    Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Driver comparison snapshot", fontWeight = FontWeight.Bold)
+                            Text("System Driver average: ${"%.1f".format(Locale.US, systemFps.average())} FPS")
+                            Text("PanVK average: ${"%.1f".format(Locale.US, panvkFps.average())} FPS")
+                            Text("Community data only. Compare the device, driver build, resolution and settings before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                items(comparisons, key = { "compare-${it.first.id}" }) { comparison ->
-                    val base = comparison.first
-                    val systemRuns = comparison.second
-                    val panvkRuns = comparison.third
-                    val systemAverage = systemRuns.mapNotNull { it.averageFps }.average()
-                    val panvkAverage = panvkRuns.mapNotNull { it.averageFps }.average()
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("FPS comparison • ${base.gameName} • ${base.gpuFamily}", fontWeight = FontWeight.Bold)
-                            Text("System Driver average: ${"%.1f".format(systemAverage)} FPS (${systemRuns.size} run(s))")
-                            Text("PanVK average: ${"%.1f".format(panvkAverage)} FPS (${panvkRuns.size} run(s))")
-                            Text("Community-submitted results only. Devices, driver builds, resolution, and settings may differ; this is not a controlled benchmark.", style = MaterialTheme.typography.bodySmall)
+                LazyColumn(
+                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 6.dp, bottom = 24.dp)
+                ) {
+                    if (gameReports.isEmpty()) item { Text("No test matches the selected filters. Go back and clear or change a filter.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    items(gameReports, key = { it.id }) { report ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { selectedReport = report },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = when (report.outcome) {
+                                        "Playable" -> MaterialTheme.colorScheme.primaryContainer
+                                        "Crashes / does not launch" -> MaterialTheme.colorScheme.errorContainer
+                                        else -> MaterialTheme.colorScheme.secondaryContainer
+                                    },
+                                    modifier = Modifier.size(52.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            when (report.outcome) {
+                                                "Playable" -> Icons.Default.CheckCircle
+                                                "Crashes / does not launch" -> Icons.Default.ErrorOutline
+                                                else -> Icons.Default.Tune
+                                            },
+                                            contentDescription = null
+                                        )
+                                    }
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("${report.gpuFamily} • ${report.driverType}", fontWeight = FontWeight.Bold)
+                                    Text("${report.emulatorName} ${report.emulatorVersion.orEmpty()} • ${report.outcome}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Avg FPS: ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • ${if (report.reviewStatus == "verified") "Verified" else "Community"}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Icon(Icons.Default.ChevronRight, contentDescription = "Open test details")
+                            }
                         }
                     }
                 }
-                items(filtered, key = { it.id }) { report ->
-                    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(report.gameName, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                AssistChip(onClick = {}, label = { Text(if (report.reviewStatus == "verified") "VERIFIED TEST" else if (report.evidenceReviewed) "EVIDENCE REVIEWED" else "COMMUNITY REPORT") })
-                            }
-                            Text("${report.gpuFamily} • ${report.driverType} • ${report.emulatorName} ${report.emulatorVersion.orEmpty()}")
-                            Text(report.outcome, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-                            Text("FPS: avg ${report.averageFps?.let { "%.1f".format(it) } ?: "—"} • min ${report.minimumFps?.let { "%.1f".format(it) } ?: "—"}")
-                            Text("Duration: ${report.testDurationSeconds?.let { "$it s" } ?: "—"} • Temperature: ${report.deviceTemperatureC?.let { "$it °C" } ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                            Text("Device: ${report.deviceModel ?: "not provided"} • SoC: ${report.soc ?: "not provided"}")
-                            Text("Wine ${report.wineVersion ?: "—"} • DXVK ${report.dxvkVersion ?: "—"} • VKD3D ${report.vkd3dVersion ?: "—"} • Box64 ${report.box64Version ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                            Text(report.notes, style = MaterialTheme.typography.bodyMedium)
-                            if (!report.graphicsIssues.isNullOrBlank()) Text("Graphics: ${report.graphicsIssues}")
-                            Text("${report.evidencePaths.size} evidence file(s) • ${report.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            report.evidencePaths.forEachIndexed { index, path ->
-                                TextButton(onClick = { openEvidence(path) }) { Icon(if (path.substringBefore('?').lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") }) Icons.Default.PlayCircle else Icons.Default.Image, null); Spacer(Modifier.width(4.dp)); Text("Preview evidence ${index + 1}") }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                TextButton(onClick = { openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); Text("DISCUSS") }
-                                TextButton(onClick = { saveConfiguration(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); Text("SAVE CONFIG") }
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                TextButton(onClick = { translateReportId = if (translateReportId == report.id) null else report.id }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Translate, null); Spacer(Modifier.width(3.dp)); Text(if (translateReportId == report.id) "HIDE TRANSLATION" else "TRANSLATE NOTES") }
-                                if (report.userId != userId) TextButton(onClick = { reportToFlag = report }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Flag, null); Spacer(Modifier.width(3.dp)); Text("REPORT") }
-                                if (report.userId == userId) TextButton(onClick = { deleteReportTarget = report }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(3.dp)); Text("DELETE") }
-                            }
-                            if (translateReportId == report.id) {
-                                TranslateReportText(
-                                    original = report.notes,
-                                    appLanguage = context.getSharedPreferences("gmailgpu_settings", 0).getString("app_language", "system") ?: "system"
-                                )
-                            }
+            }
+        }
+    }
+
+    selectedReport?.let { report ->
+        Dialog(onDismissRequest = { selectedReport = null }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 680.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Test report details", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(report.gameName, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { selectedReport = null }) { Icon(Icons.Default.Close, contentDescription = "Close report") }
+                    }
+                    val coverUrl = coverUrls[report.gameName.trim().lowercase(Locale.ROOT)]
+                    if (coverUrl != null) {
+                        AsyncImage(model = coverUrl, contentDescription = "${report.gameName} cover", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(135.dp).clip(RoundedCornerShape(14.dp)))
+                    }
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(if (report.reviewStatus == "verified") "VERIFIED TEST" else if (report.evidenceReviewed) "EVIDENCE REVIEWED" else "COMMUNITY REPORT") }
+                    )
+                    Text("${report.gpuFamily} • ${report.driverType} • ${report.emulatorName} ${report.emulatorVersion.orEmpty()}", fontWeight = FontWeight.SemiBold)
+                    Text("Result: ${report.outcome}", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text("Device: ${report.deviceModel ?: "not provided"} • SoC: ${report.soc ?: "not provided"}")
+                    Text("Driver build: ${report.driverVersion ?: "—"} • Android: ${report.androidVersion ?: "—"}")
+                    Text("Game version: ${report.gameVersion ?: "—"} • Resolution: ${report.resolution ?: "—"} • Preset: ${report.graphicsPreset ?: "—"}")
+                    Text("FPS: avg ${report.averageFps?.let { "%.1f".format(Locale.US, it) } ?: "—"} • min ${report.minimumFps?.let { "%.1f".format(Locale.US, it) } ?: "—"}")
+                    Text("Duration: ${report.testDurationSeconds?.let { "$it s" } ?: "—"} • Temperature: ${report.deviceTemperatureC?.let { "$it °C" } ?: "—"}")
+                    Text("Wine ${report.wineVersion ?: "—"} • DXVK ${report.dxvkVersion ?: "—"} • VKD3D ${report.vkd3dVersion ?: "—"} • Box64 ${report.box64Version ?: "—"}", style = MaterialTheme.typography.bodySmall)
+                    if (!report.graphicsIssues.isNullOrBlank()) Text("Graphics issues: ${report.graphicsIssues}")
+                    Text("Test notes", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                    Text(report.notes)
+                    Text("${report.evidencePaths.size} evidence file(s) • ${report.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    report.evidencePaths.forEachIndexed { index, path ->
+                        OutlinedButton(onClick = { openEvidence(path) }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(if (path.substringBefore('?').lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") || it.endsWith(".m4v") }) Icons.Default.PlayCircle else Icons.Default.Image, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("OPEN EVIDENCE ${index + 1}")
                         }
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { selectedReport = null; openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); Text("DISCUSS") }
+                        TextButton(onClick = { saveConfiguration(report); selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); Text("SAVE CONFIG") }
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { translateReportId = if (translateReportId == report.id) null else report.id }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Translate, null); Spacer(Modifier.width(3.dp)); Text("TRANSLATE") }
+                        if (report.userId != userId) TextButton(onClick = { reportToFlag = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Flag, null); Spacer(Modifier.width(3.dp)); Text("REPORT") }
+                        if (report.userId == userId) TextButton(onClick = { deleteReportTarget = report; selectedReport = null }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(3.dp)); Text("DELETE") }
+                    }
+                    if (translateReportId == report.id) {
+                        TranslateReportText(
+                            original = report.notes,
+                            appLanguage = context.getSharedPreferences("gmailgpu_settings", 0).getString("app_language", "system") ?: "system"
+                        )
+                    }
+                    Text("Review the device and graphics settings before comparing FPS. Community results are not controlled benchmarks.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
