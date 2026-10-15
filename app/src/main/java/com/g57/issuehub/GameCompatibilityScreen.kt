@@ -11,6 +11,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -33,6 +37,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
@@ -61,6 +68,9 @@ private data class GameCompatibilityReport(
     @SerialName("graphics_preset") val graphicsPreset: String? = null,
     @SerialName("average_fps") val averageFps: Double? = null,
     @SerialName("minimum_fps") val minimumFps: Double? = null,
+    @SerialName("test_duration_seconds") val testDurationSeconds: Int? = null,
+    @SerialName("device_temperature_c") val deviceTemperatureC: Double? = null,
+    @SerialName("evidence_reviewed") val evidenceReviewed: Boolean = false,
     val outcome: String,
     @SerialName("graphics_issues") val graphicsIssues: String? = null,
     val notes: String,
@@ -69,6 +79,17 @@ private data class GameCompatibilityReport(
     @SerialName("created_at") val createdAt: String? = null
 )
 
+@Serializable
+private data class GameDiscussion(
+    val id: String,
+    @SerialName("report_id") val reportId: String,
+    @SerialName("user_id") val userId: String,
+    val username: String = "community member",
+    val body: String,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+private val gameCompatibilityJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 private val gameGpuOptions = listOf("Mali-G52", "Mali-G57", "Mali-G615", "Mali-G720", "Other")
 private val gameDriverOptions = listOf("System Driver", "PanVK", "Other")
 private val gameOutcomeOptions = listOf("Playable", "Playable with issues", "Crashes / does not launch", "Not tested")
@@ -88,6 +109,19 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var notice by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
     var gpuFilter by remember { mutableStateOf("All GPUs") }
+    var driverFilter by remember { mutableStateOf("Any driver") }
+    var outcomeFilter by remember { mutableStateOf("Any outcome") }
+    var deviceFilter by remember { mutableStateOf("") }
+    var sortBy by remember { mutableStateOf("Newest") }
+    var isAdmin by remember { mutableStateOf(false) }
+    var previewUrl by remember { mutableStateOf<String?>(null) }
+    var previewVideo by remember { mutableStateOf(false) }
+    var duplicateReport by remember { mutableStateOf<GameCompatibilityReport?>(null) }
+    var discussionReport by remember { mutableStateOf<GameCompatibilityReport?>(null) }
+    var discussions by remember { mutableStateOf(emptyList<GameDiscussion>()) }
+    var discussionDraft by remember { mutableStateOf("") }
+    var discussionLoading by remember { mutableStateOf(false) }
+    var reportToFlag by remember { mutableStateOf<GameCompatibilityReport?>(null) }
     var game by remember { mutableStateOf("") }
     var gameVersion by remember { mutableStateOf("") }
     var gpu by remember { mutableStateOf("Mali-G57") }
@@ -106,6 +140,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var preset by remember { mutableStateOf("") }
     var avgFps by remember { mutableStateOf("") }
     var minFps by remember { mutableStateOf("") }
+    var testDuration by remember { mutableStateOf("") }
+    var deviceTemperature by remember { mutableStateOf("") }
     var outcome by remember { mutableStateOf("Playable with issues") }
     var graphicsIssues by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
@@ -125,8 +161,21 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 client.from("game_compatibility_reports").select(Columns.ALL) {
                     order(column = "created_at", order = Order.DESCENDING)
                 }.decodeList<GameCompatibilityReport>()
-            }.onSuccess { reports = it }
-             .onFailure { error = "Couldn't load the game library. Run supabase_game_compatibility.sql in Supabase first. Details: ${it.message}" }
+            }.onSuccess {
+                reports = it
+                context.getSharedPreferences("gmailgpu_settings", 0).edit()
+                    .putString("gmailgpu_game_compatibility_cache", gameCompatibilityJson.encodeToString(it))
+                    .apply()
+            }.onFailure { failure ->
+                val cached = context.getSharedPreferences("gmailgpu_settings", 0)
+                    .getString("gmailgpu_game_compatibility_cache", null)
+                val restored = cached?.let { runCatching { gameCompatibilityJson.decodeFromString<List<GameCompatibilityReport>>(it) }.getOrNull() }
+                if (restored != null) {
+                    reports = restored
+                    notice = "Offline mode: showing cached community test results."
+                }
+                error = "Couldn't refresh the cloud library. ${if (restored != null) "Showing cached data; " else ""}check connection and Supabase migrations. Details: ${failure.message}"
+            }
             loading = false
         }
     }
@@ -137,6 +186,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 filter { eq("id", userId) }
             }.decodeSingle<com.g57.issuehub.data.Profile>()
             username = profile.username
+            isAdmin = profile.role.equals("admin", true)
         }
         refresh()
     }
@@ -146,22 +196,122 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             runCatching {
                 client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = 20.minutes)
             }.onSuccess { url ->
-                runCatching { uriHandler.openUri(url) }
-                    .onFailure { error = "Couldn't open evidence: ${it.message}" }
+                previewUrl = url
+                previewVideo = path.substringBefore('?').lowercase().let {
+                    it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") || it.endsWith(".m4v")
+                }
             }.onFailure { error = "Couldn't create an evidence link: ${it.message}" }
         }
     }
 
-    fun submit() {
+    fun openDiscussion(report: GameCompatibilityReport) {
+        discussionReport = report
+        discussions = emptyList()
+        discussionDraft = ""
+        discussionLoading = true
+        scope.launch {
+            runCatching {
+                client.from("game_report_discussions").select(Columns.ALL) {
+                    filter { eq("report_id", report.id) }
+                    order(column = "created_at", order = Order.ASCENDING)
+                }.decodeList<GameDiscussion>()
+            }.onSuccess { discussions = it }
+             .onFailure { error = "Discussion is unavailable. Run supabase_game_lab_features.sql. Details: ${it.message}" }
+            discussionLoading = false
+        }
+    }
+
+    fun postDiscussion() {
+        val target = discussionReport ?: return
+        val body = discussionDraft.trim()
+        if (body.isBlank()) return
+        if (body.length > 2000) { error = "Discussion comments must be 2,000 characters or fewer."; return }
+        scope.launch {
+            runCatching {
+                client.from("game_report_discussions").insert(buildJsonObject {
+                    put("report_id", target.id)
+                    put("user_id", userId)
+                    put("username", username)
+                    put("body", body)
+                })
+            }.onSuccess {
+                discussionDraft = ""
+                openDiscussion(target)
+            }.onFailure { error = "Couldn't post comment. Run the Game Lab SQL migration. Details: ${it.message}" }
+        }
+    }
+
+    fun saveConfiguration(report: GameCompatibilityReport) {
+        if (userId.isBlank()) { error = "Sign in to save a configuration."; return }
+        scope.launch {
+            runCatching {
+                client.from("game_saved_configurations").insert(buildJsonObject {
+                    put("user_id", userId)
+                    put("report_id", report.id)
+                    put("config_name", "${report.gameName} — ${report.driverType}")
+                    put("game_name", report.gameName)
+                    put("gpu_family", report.gpuFamily)
+                    put("driver_type", report.driverType)
+                    put("driver_version", report.driverVersion)
+                    put("device_model", report.deviceModel)
+                    put("soc", report.soc)
+                    put("emulator_name", report.emulatorName)
+                    put("emulator_version", report.emulatorVersion)
+                    put("wine_version", report.wineVersion)
+                    put("dxvk_version", report.dxvkVersion)
+                    put("vkd3d_version", report.vkd3dVersion)
+                    put("box64_version", report.box64Version)
+                    put("resolution", report.resolution)
+                    put("graphics_preset", report.graphicsPreset)
+                    put("notes", report.notes)
+                    put("is_public", false)
+                })
+            }.onSuccess { notice = "Configuration saved. Open Community Game Lab → Configs to share or manage it." }
+             .onFailure { error = "Couldn't save configuration. Run supabase_game_lab_features.sql. Details: ${it.message}" }
+        }
+    }
+
+    fun flagReport(report: GameCompatibilityReport) {
+        scope.launch {
+            runCatching {
+                client.from("game_report_flags").insert(buildJsonObject {
+                    put("report_id", report.id)
+                    put("reporter_id", userId)
+                    put("reason", "Misleading result")
+                    put("details", "User requested moderator review from the Game Compatibility Library.")
+                })
+            }.onSuccess { notice = "Report sent to moderators for review." }
+             .onFailure { error = "Couldn't flag report. Run the Game Lab SQL migration. Details: ${it.message}" }
+        }
+    }
+
+    fun submit(forceDuplicate: Boolean = false) {
         if (userId.isBlank()) { error = "Sign in before submitting a community result."; return }
         if (game.isBlank() || notes.isBlank()) { error = "Game name and test notes are required."; return }
         if (evidence.isEmpty()) { error = "Attach at least one screenshot or video as evidence."; return }
         val parsedAvg = avgFps.toDoubleOrNull()
         val parsedMin = minFps.toDoubleOrNull()
+        val parsedDuration = testDuration.toIntOrNull()
+        val parsedTemperature = deviceTemperature.toDoubleOrNull()
         if ((avgFps.isNotBlank() && (parsedAvg == null || parsedAvg < 0)) ||
             (minFps.isNotBlank() && (parsedMin == null || parsedMin < 0))) {
             error = "FPS must be a non-negative number."; return
         }
+        if ((testDuration.isNotBlank() && (parsedDuration == null || parsedDuration < 0)) ||
+            (deviceTemperature.isNotBlank() && (parsedTemperature == null || parsedTemperature !in 0.0..150.0))) {
+            error = "Test duration must be a non-negative whole number and temperature must be between 0 and 150 °C."; return
+        }
+        val possibleDuplicate = reports.firstOrNull {
+            it.gameName.equals(game.trim(), ignoreCase = true) &&
+                it.gpuFamily == gpu &&
+                it.driverType == driver &&
+                it.deviceModel.orEmpty().equals(device.trim(), ignoreCase = true)
+        }
+        if (possibleDuplicate != null && !forceDuplicate) {
+            duplicateReport = possibleDuplicate
+            return
+        }
+        duplicateReport = null
         submitting = true
         error = null
         notice = null
@@ -207,6 +357,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     put("graphics_preset", preset.ifBlank { null })
                     if (parsedAvg != null) put("average_fps", parsedAvg)
                     if (parsedMin != null) put("minimum_fps", parsedMin)
+                    if (parsedDuration != null) put("test_duration_seconds", parsedDuration)
+                    if (parsedTemperature != null) put("device_temperature_c", parsedTemperature)
                     put("outcome", outcome)
                     put("graphics_issues", graphicsIssues.ifBlank { null })
                     put("notes", notes.trim())
@@ -215,7 +367,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             }.onSuccess {
                 notice = "Result submitted. It is labeled as a community report until verified."
                 game = ""; gameVersion = ""; driverVersion = ""; emulatorVersion = ""; wine = ""; dxvk = ""; vkd3d = ""; box64 = ""
-                resolution = ""; preset = ""; avgFps = ""; minFps = ""; graphicsIssues = ""; notes = ""; evidence = emptyList()
+                resolution = ""; preset = ""; avgFps = ""; minFps = ""; testDuration = ""; deviceTemperature = ""; graphicsIssues = ""; notes = ""; evidence = emptyList()
                 showForm = false
                 refresh()
             }.onFailure {
@@ -270,6 +422,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 OutlinedTextField(preset, { preset = it }, label = { Text("Graphics settings / preset") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(avgFps, { avgFps = it }, label = { Text("Average FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(minFps, { minFps = it }, label = { Text("Minimum FPS (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(testDuration, { testDuration = it.filter(Char::isDigit).take(6) }, label = { Text("Test duration in seconds (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(deviceTemperature, { deviceTemperature = it.filter { ch -> ch.isDigit() || ch == '.' }.take(6) }, label = { Text("Device temperature °C (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 FlowRowCompat(options = gameOutcomeOptions, selected = outcome, onSelect = { outcome = it })
                 OutlinedTextField(graphicsIssues, { graphicsIssues = it }, label = { Text("Graphics issues (black textures, glitches, etc.)") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
                 OutlinedTextField(notes, { notes = it }, label = { Text("Test notes / steps to reproduce *") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
@@ -298,8 +452,17 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             OutlinedTextField(search, { search = it }, label = { Text("Search game, GPU, driver, or emulator") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true)
             val filtered = reports.filter { report ->
                 (gpuFilter == "All GPUs" || report.gpuFamily == gpuFilter) &&
-                    listOf(report.gameName, report.gpuFamily, report.driverType, report.emulatorName, report.outcome, report.deviceModel.orEmpty())
+                    (driverFilter == "Any driver" || report.driverType == driverFilter) &&
+                    (outcomeFilter == "Any outcome" || report.outcome == outcomeFilter) &&
+                    (deviceFilter.isBlank() || report.deviceModel.orEmpty().contains(deviceFilter, ignoreCase = true)) &&
+                    listOf(report.gameName, report.gpuFamily, report.driverType, report.driverVersion.orEmpty(), report.emulatorName, report.emulatorVersion.orEmpty(), report.outcome, report.deviceModel.orEmpty(), report.dxvk.orEmpty(), report.vkd3d.orEmpty())
                         .any { value -> value.contains(search, ignoreCase = true) }
+            }.let { rows ->
+                when (sortBy) {
+                    "Highest FPS" -> rows.sortedByDescending { it.averageFps ?: -1.0 }
+                    "Verified first" -> rows.sortedWith(compareByDescending<GameCompatibilityReport> { it.reviewStatus == "verified" }.thenByDescending { it.createdAt.orEmpty() })
+                    else -> rows.sortedByDescending { it.createdAt.orEmpty() }
+                }
             }
             val comparisons = filtered.filter { it.averageFps != null }
                 .groupBy { it.gameName.lowercase() to it.gpuFamily }
@@ -313,9 +476,63 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     FilterChip(selected = gpuFilter == option, onClick = { gpuFilter = option }, label = { Text(option) })
                 }
             }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Any driver", "System Driver", "PanVK", "Other").forEach { option ->
+                    FilterChip(selected = driverFilter == option, onClick = { driverFilter = option }, label = { Text(option) })
+                }
+            }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (listOf("Any outcome") + gameOutcomeOptions).forEach { option ->
+                    FilterChip(selected = outcomeFilter == option, onClick = { outcomeFilter = option }, label = { Text(option) })
+                }
+            }
+            OutlinedTextField(deviceFilter, { deviceFilter = it }, label = { Text("Optional device-model filter") }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), singleLine = true)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Newest", "Highest FPS", "Verified first").forEach { option ->
+                    FilterChip(selected = sortBy == option, onClick = { sortBy = option }, label = { Text("Sort: $option") })
+                }
+            }
             LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if (filtered.isEmpty() && !loading) item { Text("No community results yet. Add the first evidence-backed game report.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
+                if (filtered.isNotEmpty()) item {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("Community coverage", fontWeight = FontWeight.Bold)
+                            Text("${filtered.size} visible test(s) • ${filtered.map { it.gameName.lowercase() }.distinct().size} game(s) • ${filtered.count { it.reviewStatus == "verified" }} verified")
+                            gameGpuOptions.filter { it != "Other" }.forEach { family ->
+                                val amount = filtered.count { it.gpuFamily == family }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(family, Modifier.width(94.dp), style = MaterialTheme.typography.bodySmall)
+                                    LinearProgressIndicator(progress = { if (filtered.isEmpty()) 0f else amount.toFloat()/filtered.size }, modifier = Modifier.weight(1f).height(6.dp))
+                                    Text(" $amount", style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                    }
+                }
+                val regressions = filtered.filter { it.averageFps != null }
+                    .groupBy { Triple(it.gameName.lowercase(), it.gpuFamily, it.driverType) }
+                    .mapNotNull { (_, runs) ->
+                        val sortedRuns = runs.sortedByDescending { it.createdAt.orEmpty() }
+                        if (sortedRuns.size < 2) null else {
+                            val newer = sortedRuns[0]; val older = sortedRuns[1]
+                            val oldFps = older.averageFps ?: return@mapNotNull null
+                            val newFps = newer.averageFps ?: return@mapNotNull null
+                            if (oldFps <= 0.0 || newFps >= oldFps * 0.90) null else Triple(newer, older, ((oldFps-newFps)/oldFps)*100.0)
+                        }
+                    }.take(3)
+                if (regressions.isNotEmpty()) item {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("Possible performance regressions", fontWeight = FontWeight.Bold)
+                            regressions.forEach { (latest, previous, drop) ->
+                                Text("${latest.gameName} • ${latest.gpuFamily} • ${latest.driverType}: latest FPS ${latest.averageFps}, previously ${previous.averageFps} (about ${"%.0f".format(drop)}% lower).")
+                            }
+                            Text("This is a signal from two community records, not proof that the driver update caused the change.", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
                 items(comparisons, key = { "compare-${it.first.id}" }) { comparison ->
                     val base = comparison.first
                     val systemRuns = comparison.second
@@ -336,18 +553,24 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(report.gameName, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                AssistChip(onClick = {}, label = { Text(report.reviewStatus.uppercase()) })
+                                AssistChip(onClick = {}, label = { Text(if (report.reviewStatus == "verified") "VERIFIED TEST" else if (report.evidenceReviewed) "EVIDENCE REVIEWED" else "COMMUNITY REPORT") })
                             }
                             Text("${report.gpuFamily} • ${report.driverType} • ${report.emulatorName} ${report.emulatorVersion.orEmpty()}")
                             Text(report.outcome, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                             Text("FPS: avg ${report.averageFps?.let { "%.1f".format(it) } ?: "—"} • min ${report.minimumFps?.let { "%.1f".format(it) } ?: "—"}")
+                            Text("Duration: ${report.testDurationSeconds?.let { "$it s" } ?: "—"} • Temperature: ${report.deviceTemperatureC?.let { "$it °C" } ?: "—"}", style = MaterialTheme.typography.bodySmall)
                             Text("Device: ${report.deviceModel ?: "not provided"} • SoC: ${report.soc ?: "not provided"}")
                             Text("Wine ${report.wineVersion ?: "—"} • DXVK ${report.dxvkVersion ?: "—"} • VKD3D ${report.vkd3dVersion ?: "—"} • Box64 ${report.box64Version ?: "—"}", style = MaterialTheme.typography.bodySmall)
                             Text(report.notes, style = MaterialTheme.typography.bodyMedium)
                             if (!report.graphicsIssues.isNullOrBlank()) Text("Graphics: ${report.graphicsIssues}")
                             Text("${report.evidencePaths.size} evidence file(s) • ${report.username}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             report.evidencePaths.forEachIndexed { index, path ->
-                                TextButton(onClick = { openEvidence(path) }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); Text("Open evidence ${index + 1}") }
+                                TextButton(onClick = { openEvidence(path) }) { Icon(if (path.substringBefore('?').lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") }) Icons.Default.PlayCircle else Icons.Default.Image, null); Spacer(Modifier.width(4.dp)); Text("Preview evidence ${index + 1}") }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TextButton(onClick = { openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); Text("DISCUSS") }
+                                TextButton(onClick = { saveConfiguration(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); Text("SAVE CONFIG") }
+                                if (report.userId != userId) TextButton(onClick = { reportToFlag = report }) { Icon(Icons.Default.Flag, null); Text("FLAG") }
                             }
                         }
                     }
