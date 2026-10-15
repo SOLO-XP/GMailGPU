@@ -29,8 +29,16 @@ android {
 
         val sbUrl = localProperties.getProperty("SUPABASE_URL", System.getenv("SUPABASE_URL") ?: "")
         val sbKey = localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY", System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: "")
+        val firebaseApiKey = localProperties.getProperty("FIREBASE_API_KEY", System.getenv("FIREBASE_API_KEY") ?: "")
+        val firebaseProjectId = localProperties.getProperty("FIREBASE_PROJECT_ID", System.getenv("FIREBASE_PROJECT_ID") ?: "")
+        val firebaseAppId = localProperties.getProperty("FIREBASE_APPLICATION_ID", System.getenv("FIREBASE_APPLICATION_ID") ?: "")
+        val firebaseSenderId = localProperties.getProperty("FIREBASE_MESSAGING_SENDER_ID", System.getenv("FIREBASE_MESSAGING_SENDER_ID") ?: "")
         buildConfigField("String", "SUPABASE_URL", "\"$sbUrl\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$sbKey\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$firebaseProjectId\"")
+        buildConfigField("String", "FIREBASE_APPLICATION_ID", "\"$firebaseAppId\"")
+        buildConfigField("String", "FIREBASE_MESSAGING_SENDER_ID", "\"$firebaseSenderId\"")
     }
 
     buildFeatures {
@@ -90,6 +98,8 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+    implementation("com.google.firebase:firebase-messaging")
     implementation("io.ktor:ktor-client-android:3.0.3")
     // On-device language detection and translation for issue chat.
     implementation("com.google.mlkit:translate:17.0.3")
