@@ -10,6 +10,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +121,70 @@ class G57Repository {
             order(column = "created_at", order = Order.DESCENDING)
         }.decodeList()
 
+    suspend fun visiblePresence(): List<UserPresence> =
+        sb.from("user_presence").select(Columns.ALL).decodeList()
+
+    suspend fun updatePresence(online: Boolean) {
+        val userId = sb.auth.currentUserOrNull()?.id ?: return
+        sb.from("user_presence").upsert(buildJsonObject {
+            put("user_id", userId)
+            put("is_online", online)
+        }) { onConflict = "user_id" }
+    }
+
+    suspend fun registerPushToken(token: String) {
+        require(token.isNotBlank()) { "Push token is empty." }
+        val userId = sb.auth.currentUserOrNull()?.id ?: error("Sign in before registering notifications.")
+        sb.from("device_push_tokens").upsert(buildJsonObject {
+            put("token", token)
+            put("user_id", userId)
+            put("platform", "android")
+            put("updated_at", java.time.Instant.now().toString())
+        }) { onConflict = "token" }
+    }
+
+    suspend fun deletePushToken(token: String) {
+        val userId = sb.auth.currentUserOrNull()?.id ?: return
+        sb.from("device_push_tokens").delete {
+            filter { eq("token", token); eq("user_id", userId) }
+        }
+    }
+
+    suspend fun issueById(issueId: String): Issue =
+        sb.from("issues").select(Columns.ALL) {
+            filter { eq("id", issueId) }
+        }.decodeSingle()
+
+    private suspend fun requestChatPush(messageId: String) {
+        val accessToken = sb.auth.currentAccessTokenOrNull() ?: return
+        val projectUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
+        require(projectUrl.startsWith("https://")) { "Push endpoint is not configured." }
+        withContext(Dispatchers.IO) {
+            val connection = (URL("$projectUrl/functions/v1/send-chat-push").openConnection() as HttpURLConnection)
+            try {
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 12000
+                connection.doOutput = true
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
+                connection.setRequestProperty("Authorization", "Bearer $accessToken")
+                connection.outputStream.use {
+                    it.write(JSONObject().put("message_id", messageId).toString().toByteArray(Charsets.UTF_8))
+                }
+                val status = connection.responseCode
+                if (status !in 200..299) {
+                    val errorBody = runCatching {
+                        (connection.errorStream ?: connection.inputStream).bufferedReader().use { it.readText() }
+                    }.getOrNull().orEmpty()
+                    throw IllegalStateException("Push service returned HTTP $status: ${errorBody.take(200)}")
+                }
+            } finally {
+                connection.disconnect()
+            }
+        }
+    }
+
     suspend fun issueMessages(issueId: String): List<IssueMessage> =
         sb.from("issue_messages").select(Columns.ALL) {
             filter { eq("issue_id", issueId) }
@@ -131,11 +196,14 @@ class G57Repository {
         require(cleanBody.isNotEmpty()) { "Write a message first." }
         require(cleanBody.length <= 4000) { "Messages must be 4000 characters or less." }
         val senderId = sb.auth.currentUserOrNull()?.id ?: error("Your session has expired. Sign in again.")
-        return sb.from("issue_messages").insert(buildJsonObject {
+        val sent = sb.from("issue_messages").insert(buildJsonObject {
             put("issue_id", issueId)
             put("sender_id", senderId)
             put("body", cleanBody)
-        }) { select() }.decodeSingle()
+        }) { select() }.decodeSingle<IssueMessage>()
+        // Chat delivery must succeed even when optional Firebase push has not been configured.
+        runCatching { requestChatPush(sent.id) }
+        return sent
     }
 
     suspend fun createIssue(input: CreateIssueInput): Issue =
