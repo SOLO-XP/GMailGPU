@@ -173,7 +173,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     require(mime.startsWith("image/") || mime.startsWith("video/")) { "Only image and video evidence is supported." }
                     val bytes = withContext(Dispatchers.IO) {
                         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                            ?: error("Couldn't read a selected file.")
+                            ?: throw IllegalStateException("Couldn't read a selected file.")
                     }
                     require(bytes.size <= 150L * 1024L * 1024L) { "Each evidence file must be 150 MB or smaller." }
                     val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
