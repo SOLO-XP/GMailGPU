@@ -187,7 +187,7 @@ private fun downloadApk(url: String, cacheDir: File): File {
 
 private fun isReleaseNewer(remoteTag: String, currentVersion: String): Boolean {
     fun numbers(value: String): List<Int> =
-        Regex("""\\d+""").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
+        Regex("""\d+""").findAll(value).take(3).map { it.value.toIntOrNull() ?: 0 }.toList()
             .let { it + List((3 - it.size).coerceAtLeast(0)) { 0 } }
 
     val remote = numbers(remoteTag)
@@ -201,7 +201,7 @@ private fun isReleaseNewer(remoteTag: String, currentVersion: String): Boolean {
     if (remoteLower == currentLower) return false
 
     // A stable release with the same numeric version supersedes an installed beta/RC.
-    val prereleasePattern = Regex("""(?:^|[-._])(alpha|beta|preview|pre|rc|dev)(?:[-._]?\\d*)?(?:$|[-._])""")
+    val prereleasePattern = Regex("""(?:^|[-._])(alpha|beta|preview|pre|rc|dev)(?:[-._]?\d*)?(?:$|[-._])""")
     val remoteIsPrerelease = prereleasePattern.containsMatchIn(remoteLower)
     val currentIsPrerelease = prereleasePattern.containsMatchIn(currentLower)
     if (currentIsPrerelease && !remoteIsPrerelease) return true
