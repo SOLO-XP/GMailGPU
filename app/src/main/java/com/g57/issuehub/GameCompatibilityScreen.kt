@@ -323,8 +323,9 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
         if (report.userId != userId) { error = "You can delete only your own test reports."; return }
         scope.launch {
             runCatching {
-                if (report.evidencePaths.isNotEmpty()) {
-                    client.storage.from("game-evidence").delete(*report.evidencePaths.toTypedArray())
+                val filesToDelete = report.evidencePaths + listOfNotNull(report.gameImagePath)
+                if (filesToDelete.isNotEmpty()) {
+                    client.storage.from("game-evidence").delete(*filesToDelete.toTypedArray())
                 }
                 client.from("game_compatibility_reports").delete {
                     filter { eq("id", report.id); eq("user_id", userId) }
@@ -486,7 +487,6 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                         if (gameCover != null) TextButton(onClick = { gameCover = null }) { Text("Remove image") }
                     }
                 }
-                OutlinedTextField(gameVersion, { gameVersion = it }, label = { Text("Game version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(gameVersion, { gameVersion = it }, label = { Text("Game version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Text("GPU family")
                 FlowRowCompat(options = gameGpuOptions, selected = gpu, onSelect = { gpu = it })
