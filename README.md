@@ -183,8 +183,9 @@ GMailGPU is built with **Kotlin**, **Android**, and **Jetpack Compose**, with cl
 - **Username already taken:** choose a different username.
 - **Can't sign in:** check the selected access type, username, password, and connection.
 - **Chat does not load:** open the correct issue and refresh the chat.
+- **Issue status update fails with `42501` / permission denied:** run [`issue_update_permissions_hotfix.sql`](https://github.com/SOLO-XP/GMailGPU/blob/main/issue_update_permissions_hotfix.sql) once in your database SQL editor, then sign out and sign in again. The fix keeps row-level access controls enabled; never grant issue updates to the public `anon` role.
 - **Upload fails:** check your connection, attachment size, selected files, and retry.
-- **Language remains in English:** a translation model may still need to download, or the language may not be supported by the selected translation path.
+- **Language remains in English:** confirm the selected language in Settings, keep internet access available for the first on-device translation model download, and reopen the screen once the model is ready.
 - **A game has no results:** treat it as **not tested**. Add an evidence-backed result if you have tested it.
 - **A result says Verified:** remember that verification covers review of the submitted test, not every possible device or setup.
 
