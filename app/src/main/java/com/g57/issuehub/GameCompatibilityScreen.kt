@@ -536,7 +536,20 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     }
                 }
                 val regressions = filtered.filter { it.averageFps != null }
-                    .groupBy { Triple(it.gameName.lowercase(), it.gpuFamily, it.driverType) }
+                    // Compare repeated tests only when device, emulator stack, game version,
+                    // resolution and preset match. Driver build is intentionally omitted so
+                    // results from successive builds of the same driver can be compared.
+                    .groupBy { r ->
+                        listOf(
+                            r.gameName.lowercase(), r.gameVersion.orEmpty().lowercase(),
+                            r.gpuFamily, r.driverType, r.deviceModel.orEmpty().lowercase(),
+                            r.soc.orEmpty().lowercase(), r.emulatorName.lowercase(),
+                            r.emulatorVersion.orEmpty().lowercase(), r.wineVersion.orEmpty().lowercase(),
+                            r.dxvkVersion.orEmpty().lowercase(), r.vkd3dVersion.orEmpty().lowercase(),
+                            r.box64Version.orEmpty().lowercase(), r.resolution.orEmpty().lowercase(),
+                            r.graphicsPreset.orEmpty().lowercase()
+                        ).joinToString("|")
+                    }
                     .mapNotNull { (_, runs) ->
                         val sortedRuns = runs.sortedByDescending { it.createdAt.orEmpty() }
                         if (sortedRuns.size < 2) null else {
