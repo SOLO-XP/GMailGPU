@@ -41,6 +41,7 @@ create index if not exists game_compatibility_driver_idx
   on public.game_compatibility_reports (lower(game_name), gpu_family, driver_type);
 
 alter table public.game_compatibility_reports enable row level security;
+grant select, insert, update on public.game_compatibility_reports to authenticated;
 
 drop policy if exists "Read community game reports" on public.game_compatibility_reports;
 create policy "Read community game reports"
