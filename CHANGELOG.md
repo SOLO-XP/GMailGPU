@@ -7,6 +7,11 @@
 - Added Android notification permission handling, a notification channel, duplicate suppression, and direct issue navigation from notification taps.
 - Added optional Firebase Cloud Messaging token registration and an authenticated server function for remote delivery while the app is in the background.
 - Chat automatically refreshes about every five seconds while an issue is open and the app is active.
+- Added distinct Sent, Delivered and Read states; incoming messages are marked delivered when fetched and read when the conversation is opened.
+- Added an expiring `Typing…` indicator for the issue owner/developer team while composing a reply.
+- Added per-issue notification modes: all replies, important replies only, or muted. Muting never deletes chat messages.
+- Added a per-message “Mark this reply as important” control; important-only preferences are enforced by the database trigger and push function.
+- The additional `chat_read_receipts_typing_preferences.sql` migration must be applied after the original chat/presence SQL.
 - Push delivery requires the included SQL setup, Firebase client configuration in build secrets, and a deployed server function with the private Firebase service-account secret; secrets are not stored in the repository.
 - Planned package version: 0.3.4-beta (versionCode 19). Not published yet.
 
