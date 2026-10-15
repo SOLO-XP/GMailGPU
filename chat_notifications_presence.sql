@@ -1,6 +1,7 @@
 -- GMailGPU chat notifications, device push tokens, and online presence.
 -- Run once in the existing project SQL editor. Safe to rerun.
--- Requires public.issues, public.profiles, public.notifications and public.issue_messages.
+-- Requires the existing public.issues, public.profiles and public.notifications tables.
+-- Creates public.issue_messages if the issue-chat table does not yet exist.
 
 begin;
 
