@@ -479,7 +479,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     (driverFilter == "Any driver" || report.driverType == driverFilter) &&
                     (outcomeFilter == "Any outcome" || report.outcome == outcomeFilter) &&
                     (deviceFilter.isBlank() || report.deviceModel.orEmpty().contains(deviceFilter, ignoreCase = true)) &&
-                    listOf(report.gameName, report.gpuFamily, report.driverType, report.driverVersion.orEmpty(), report.emulatorName, report.emulatorVersion.orEmpty(), report.outcome, report.deviceModel.orEmpty(), report.dxvk.orEmpty(), report.vkd3d.orEmpty())
+                    listOf(report.gameName, report.gpuFamily, report.driverType, report.driverVersion.orEmpty(), report.emulatorName, report.emulatorVersion.orEmpty(), report.outcome, report.deviceModel.orEmpty(), report.dxvkVersion.orEmpty(), report.vkd3dVersion.orEmpty())
                         .any { value -> value.contains(search, ignoreCase = true) }
             }.let { rows ->
                 when (sortBy) {
