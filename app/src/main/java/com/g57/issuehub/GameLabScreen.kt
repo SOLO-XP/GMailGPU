@@ -261,8 +261,8 @@ internal fun GameLabScreen(
                     filter { eq("user_id", userId) }
                     order(column = "created_at", order = Order.DESCENDING)
                 }.decodeList<GameWatchNotification>()
+                // RLS returns the current user's configs plus community configs explicitly marked public.
                 savedConfigs = client.from("game_saved_configurations").select(Columns.ALL) {
-                    filter { eq("user_id", userId) }
                     order(column = "created_at", order = Order.DESCENDING)
                 }.decodeList<GameSavedConfiguration>()
                 userPrefs.edit().putString("gmailgpu_saved_configs_cache", gameLabJson.encodeToString(savedConfigs)).apply()
@@ -852,7 +852,11 @@ internal fun GameLabScreen(
                                 if (!config.notes.isNullOrBlank()) Text(config.notes, style = MaterialTheme.typography.bodySmall)
                                 Row {
                                     TextButton(onClick = { shareConfig(config, context) }) { Icon(Icons.Default.Share, null); Spacer(Modifier.width(4.dp)); Text("SHARE") }
-                                    TextButton(onClick = { deleteConfig(config) }) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(4.dp)); Text("DELETE") }
+                                    if (config.userId == userId) {
+                                        TextButton(onClick = { deleteConfig(config) }) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(4.dp)); Text("DELETE") }
+                                    } else {
+                                        AssistChip(onClick = {}, label = { Icon(Icons.Default.People, null); Spacer(Modifier.width(4.dp)); Text("COMMUNITY") })
+                                    }
                                 }
                             }
                         }
