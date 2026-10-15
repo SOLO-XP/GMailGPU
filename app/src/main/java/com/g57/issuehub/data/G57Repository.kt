@@ -145,6 +145,21 @@ class G57Repository {
         sb.from("issues").update(buildJsonObject { put("status", status) }) { filter { eq("id", issueId) } }
     }
 
+    suspend fun markIssueViewedByAdmin(issueId: String) {
+        sb.from("issues").update(buildJsonObject {
+            put("last_admin_viewed_at", java.time.Instant.now().toString())
+        }) { filter { eq("id", issueId) } }
+    }
+
+    suspend fun reopenOwnIssue(issueId: String) {
+        sb.from("issues").update(buildJsonObject { put("status", "open") }) {
+            filter {
+                eq("id", issueId)
+                eq("status", "closed")
+            }
+        }
+    }
+
     suspend fun updateDeveloperNote(issueId: String, note: String) {
         sb.from("issues").update(buildJsonObject { put("developer_note", note) }) { filter { eq("id", issueId) } }
     }
