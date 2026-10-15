@@ -195,9 +195,18 @@ private fun isReleaseNewer(remoteTag: String, currentVersion: String): Boolean {
     for (i in 0..2) {
         if (remote[i] != current[i]) return remote[i] > current[i]
     }
-    val remoteLower = remoteTag.lowercase(Locale.ROOT)
-    val currentLower = currentVersion.lowercase(Locale.ROOT)
-    if (remoteLower == currentLower || remoteLower.removePrefix("v") == currentLower.removePrefix("v")) return false
+
+    val remoteLower = remoteTag.lowercase(Locale.ROOT).removePrefix("v")
+    val currentLower = currentVersion.lowercase(Locale.ROOT).removePrefix("v")
+    if (remoteLower == currentLower) return false
+
+    // A stable release with the same numeric version supersedes an installed beta/RC.
+    val prereleasePattern = Regex("""(?:^|[-._])(alpha|beta|preview|pre|rc|dev)(?:[-._]?\d*)?(?:$|[-._])""")
+    val remoteIsPrerelease = prereleasePattern.containsMatchIn(remoteLower)
+    val currentIsPrerelease = prereleasePattern.containsMatchIn(currentLower)
+    if (currentIsPrerelease && !remoteIsPrerelease) return true
+    if (!currentIsPrerelease && remoteIsPrerelease) return false
+
     val remoteHotfix = listOf("hotfix", "patch", "fix").any { it in remoteLower }
     val currentHotfix = listOf("hotfix", "patch", "fix").any { it in currentLower }
     return remoteHotfix && !currentHotfix

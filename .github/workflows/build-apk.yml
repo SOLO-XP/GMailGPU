@@ -1,5 +1,9 @@
 name: Build GMailGPU APK
 
+concurrency:
+  group: gmailgpu-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
@@ -100,39 +104,30 @@ jobs:
           AAPT="$ANDROID_SDK_ROOT/build-tools/36.0.0/aapt"
 
           test -s "$APK"
-          echo "APK size:"
-          stat -c '%s bytes' "$APK"
-
+          echo "APK size: $(stat -c '%s bytes' "$APK")"
           echo "Checking ZIP/APK structure..."
           unzip -t "$APK"
-
           echo "Checking APK signature..."
           "$APKSIGNER" verify --verbose --print-certs "$APK"
-
           echo "Checking package name and version..."
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
-          grep -F "package: name='com.g57.issuehub' versionCode='15' versionName='0.3-beta'" apk-badging.txt
-
+          grep -F "package: name='com.g57.issuehub' versionCode='16' versionName='0.3.1-beta'" apk-badging.txt
           sha256sum "$APK" | tee app-debug.apk.sha256
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
           {
             echo "### Verified GMailGPU APK"
-            echo ""
-            echo "- Package: com.g57.issuehub"
-            echo "- Version: 0.3-beta (15)"
+            echo "- Version: 0.3.1-beta (16)"
             echo "- APK size: $(stat -c '%s bytes' "$APK")"
-            echo "- SHA-256: $SHA256"
-            echo "- ZIP structure: passed"
             echo "- APK signature: passed"
+            echo "- SHA-256: `$SHA256`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload verified APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: GMailGPU-v0.3-beta
+          name: GMailGPU-v0.3.1-beta
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app-debug.apk.sha256
-            apk-badging.txt
           if-no-files-found: error
-          compression-level: 0
+          retention-days: 90

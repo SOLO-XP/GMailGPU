@@ -30,6 +30,7 @@ sealed interface ScreenState {
     data object AdminUserManagement : ScreenState
     data object DriverDevelopers : ScreenState
     data object GameCompatibility : ScreenState
+    data object GameLab : ScreenState
     data object Help : ScreenState
     data object Settings : ScreenState
     data class AdminIssue(val issue: Issue) : ScreenState
@@ -262,6 +263,7 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openDriverDevelopers() = update { copy(screen = ScreenState.DriverDevelopers, error = null) }
     fun openGameCompatibility() = update { copy(screen = ScreenState.GameCompatibility, error = null, success = null) }
+    fun openGameLab() = update { copy(screen = ScreenState.GameLab, error = null, success = null) }
     fun openHelp() = update { copy(screen = ScreenState.Help, error = null) }
     fun openSettings() = update { copy(screen = ScreenState.Settings, error = null) }
     fun goHome() = update {

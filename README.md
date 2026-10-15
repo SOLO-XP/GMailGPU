@@ -1,4 +1,4 @@
-# 🚀 GMailGPU — Mali GPU Community Hub
+# 🚀 GMailGPU 0.3.1 Beta — Community Game Lab Update
 
 <p align="center">
   <strong>🛠️ Better bug reports. Clearer diagnostics. Stronger Mali gaming.</strong>
@@ -9,7 +9,7 @@
   <img alt="Language" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Backend" src="https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase&logoColor=white">
   <img alt="GPU families" src="https://img.shields.io/badge/Mali-G57%20%7C%20G52%20%7C%20G615%20%7C%20G720-111827">
-  <img alt="Version" src="https://img.shields.io/badge/Version-0.3%20Beta-00B8D9">
+  <img alt="Version" src="https://img.shields.io/badge/Version-0.3.1%20Beta-00B8D9">
 </p>
 
 **GMailGPU** is an early-beta Android community app for reporting Mali GPU driver and Winlator/GameHub compatibility issues. It helps users submit reproducible bug reports, attach diagnostic evidence, communicate with developers, and find community driver projects for **Mali-G57, G52, G615, and G720**.
@@ -36,6 +36,13 @@
 - 🔗 **Mali Driver Developers** menu with links to community driver repositories.
 - ⚖️ **Evidence-first driver guide** — no claimed universal winner between System Driver and PanVK; includes per-GPU visual references for G52/G57/G615/G720.
 - 🧪 **Local Driver Test Lab** — save average/minimum FPS, visual issues, crashes and notes for each GPU/game/driver; compare saved System Driver and PanVK entries and share the results. Records stay on the device until shared.
+- 🧭 **Community Game Lab** — an in-app hub for the game finder, a report wizard, guided troubleshooting, private saved configurations, game watchlists, in-app alerts for new matching tests, tester profiles/badges, aggregate statistics, and offline cached browsing.
+- 🧪 **Advanced benchmark records** — optional test duration and device temperature fields, plus GPU/driver/outcome/device filters and newest/highest-FPS/verified-first sorting. A possible performance regression is highlighted only when two community records show a drop; it is not treated as proof of causation.
+- 🖼️ **Evidence gallery and game discussions** — open signed screenshot/video previews in the app, discuss an individual test, report potentially misleading entries, and save a report’s configuration. Review labels distinguish community entries, evidence-reviewed entries, and verified tests.
+- 🗒️ **Local Diagnostic Log Analyzer** — select a log for on-device pattern analysis of Vulkan initialization, out-of-memory, crash, DXVK/VKD3D and graphics signatures. Output is not uploaded automatically and is explicitly a best-effort aid.
+- 🧑‍⚖️ **Developer review queue** — admins can mark evidence reviewed, verify a test after reviewing its evidence, or reject a submission. These controls require an admin role in Supabase.
+- 🧾 **Export, privacy and offline support** — share a PDF report, share or remove saved configurations, cache the last successful community report list for offline reference, and flag questionable reports for moderators.
+- 🔄 **Driver Update Tracker** — checks each linked repository’s latest published GitHub Release when available; it does not assume every commit is a release or every release is compatible with every device.
 - 🎮 **Game Compatibility Library** — browse community results by game/GPU/driver and submit structured evidence with screenshots/videos, game and device details, System Driver vs PanVK, Winlator/GameHub, Wine, DXVK, VKD3D-Proton, Box64, resolution, graphics settings, average/minimum FPS, crashes, and rendering defects. Results are labeled as community-submitted until verified; FPS comparisons are only meaningful when test conditions are similar.
 - 🧭 **Quick Troubleshooter** for black textures, Vulkan startup errors, low FPS/stutter, and crashes, with a practical checklist and direct bug-report link.
 - 🟢 **Driver choice guide** for Mali-G57/G52/G615/G720: compare the system driver with experimental PanVK and learn when to try each option. Results depend on the device, driver build, and game.
@@ -59,6 +66,8 @@ Issues with no admin/developer review for 14 days are automatically moved to **C
 For an existing Supabase database, run `supabase_14_day_auto_close.sql` once in the Supabase SQL Editor. Make sure the Supabase Cron (`pg_cron`) extension is enabled; the SQL schema schedules the check hourly. New database setups can use the updated `supabase_schema.sql`.
 
 For the **Game Compatibility Library**, run `supabase_game_compatibility.sql` once in the Supabase SQL Editor. This creates the report table, row-level security rules, and private `game-evidence` storage bucket. Reports require at least one image/video and are initially marked `community`, not verified. Admins can review evidence and set `review_status` to `verified` or `rejected` in the Supabase table editor; do not label a result verified without checking the evidence.
+
+For the extended **Community Game Lab**, run `supabase_game_lab_features.sql` after the compatibility migration. It adds watchlists and notifications, saved configurations, opt-in tester profiles, discussion threads, moderation flags, benchmark duration/temperature fields, and admin-only evidence review metadata. The app displays a setup error if these extra tables are not available. Public profiles are opt-in; report/config sharing should not include passwords, tokens, or private device information.
 
 ## 📘 How to use GMailGPU
 

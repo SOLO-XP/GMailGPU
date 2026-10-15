@@ -275,6 +275,13 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
+                            label = { AppText("Community Game Lab") },
+                            selected = ui.screen == ScreenState.GameLab,
+                            icon = { Icon(Icons.Default.Explore, contentDescription = null) },
+                            onClick = { scope.launch { drawerState.close() }; vm.openGameLab() },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
                             label = { AppText("Need Help? • How To Use App") },
                             selected = ui.screen == ScreenState.Help,
                             icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
@@ -319,6 +326,17 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                     ScreenState.AdminUserManagement -> AdminUserManagementScreen(ui, vm)
                     ScreenState.DriverDevelopers -> DriverDevelopersScreen(vm)
                     ScreenState.GameCompatibility -> GameCompatibilityScreen { vm.back() }
+                    ScreenState.GameLab -> GameLabScreen(
+                        onBack = { vm.back() },
+                        onOpenGameLibrary = { vm.openGameCompatibility() },
+                        onCreateIssue = { title, game, type, description ->
+                            vm.openCreate()
+                            vm.setField("title", title)
+                            vm.setField("game", game)
+                            vm.setProblemType(type)
+                            vm.setField("description", description)
+                        }
+                    )
                     ScreenState.Help -> HelpScreen(vm)
                     ScreenState.Settings -> SettingsScreen(ui, vm)
                     is ScreenState.AdminIssue -> IssueDetails(screen.issue, ui, vm, admin = true)
