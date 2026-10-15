@@ -120,12 +120,19 @@ security definer
 set search_path = public
 as $g57_guard$
 begin
+  -- Scheduled SQL runs without an auth.uid(); allow only trusted database roles.
+  if auth.uid() is null then
+    if current_user in ('postgres', 'service_role', 'supabase_admin') then
+      return new;
+    end if;
+    raise exception 'A signed-in owner or administrator is required.';
+  end if;
+
   if public.is_admin() then
     return new;
   end if;
 
-  if auth.uid() is null
-     or old.user_id is distinct from auth.uid()
+  if old.user_id is distinct from auth.uid()
      or old.status <> 'closed'
      or new.status <> 'open'
      or (to_jsonb(new) - 'status') is distinct from (to_jsonb(old) - 'status') then
