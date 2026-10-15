@@ -60,7 +60,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $function$
 begin
   select p.username into new.username
   from public.profiles p
@@ -73,7 +73,7 @@ begin
   new.review_status := 'community';
   return new;
 end;
-$;
+$function$;
 
 drop trigger if exists set_game_report_submitter on public.game_compatibility_reports;
 create trigger set_game_report_submitter
