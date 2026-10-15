@@ -257,6 +257,21 @@ fun G57App(
         onNotificationConsumed()
     }
 
+    val activeChatIssueId = when (val currentScreen = ui.screen) {
+        is ScreenState.UserIssue -> currentScreen.issue.id
+        is ScreenState.AdminIssue -> currentScreen.issue.id
+        else -> null
+    }
+    LaunchedEffect(activeChatIssueId, activityStarted) {
+        val issueId = activeChatIssueId ?: return@LaunchedEffect
+        if (!activityStarted) return@LaunchedEffect
+        vm.refreshIssueMessages(issueId)
+        while (true) {
+            delay(5_000)
+            vm.refreshIssueMessages(issueId)
+        }
+    }
+
     // Hide only screens that reveal registered/resolved usernames. Other app screens
     // continue to allow screenshots, including screenshots of images and issue evidence.
     DisposableEffect(context, ui.screen) {
