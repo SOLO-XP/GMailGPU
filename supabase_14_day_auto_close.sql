@@ -14,7 +14,7 @@ create or replace function public.guard_owner_issue_reopen()
 returns trigger
 language plpgsql
 set search_path = public
-as $
+as $g57_guard$
 begin
   -- Scheduled SQL runs without an auth.uid(); allow only trusted database roles.
   if auth.uid() is null then
@@ -37,7 +37,7 @@ begin
 
   return new;
 end;
-$$;
+$g57_guard$;
 
 drop trigger if exists guard_owner_issue_reopen_trigger on public.issues;
 create trigger guard_owner_issue_reopen_trigger
