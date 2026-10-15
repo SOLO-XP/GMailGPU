@@ -89,6 +89,15 @@ Deno.serve(async (req) => {
     const notificationBody = `${senderProfile.username}: ${preview}`;
 
     const results = await Promise.all(tokens.map(async (item: { token: string; user_id: string }) => {
+      const { data: latestNotification } = await admin
+        .from("notifications")
+        .select("id")
+        .eq("user_id", item.user_id)
+        .eq("issue_id", issue.id)
+        .ilike("title", "%reply%")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       const fcmResponse = await fetch(
         `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
         {
@@ -103,6 +112,8 @@ Deno.serve(async (req) => {
               notification: { title, body: notificationBody },
               data: {
                 issue_id: String(issue.id),
+                message_id: String(message.id),
+                notification_id: String(latestNotification?.id ?? message.id),
                 notification_title: title,
                 notification_body: notificationBody,
               },
