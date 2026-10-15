@@ -721,8 +721,8 @@ internal fun GameLabScreen(
                     item {
                         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Find the right test before changing drivers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Search real community evidence for Mali-G52, G57, G615 and G720. Unknown games stay “Not tested”; we never invent a compatibility verdict.")
+                                Text("Browse games, then open each test", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text("Games now appear as square cover cards. Open a game to explore community test results, driver comparisons, exact settings and evidence. Unknown games stay “Not tested”; compatibility is never invented.")
                                 Button(onClick = onOpenGameLibrary, modifier = Modifier.fillMaxWidth()) {
                                     Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("OPEN GAME COMPATIBILITY FINDER")
                                 }
