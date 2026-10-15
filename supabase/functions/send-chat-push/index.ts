@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     });
     const { data: message, error: messageError } = await admin
       .from("issue_messages")
-      .select("id, issue_id, sender_id, body")
+      .select("id, issue_id, sender_id, body, is_important")
       .eq("id", messageId)
       .maybeSingle();
     if (messageError || !message) return response({ error: "Message not found" }, 404);
@@ -60,6 +60,22 @@ Deno.serve(async (req) => {
     }
     recipientIds = [...new Set(recipientIds)];
     if (recipientIds.length === 0) return response({ sent: 0, reason: "No recipient" }, 200);
+
+    const { data: preferences, error: preferenceError } = await admin
+      .from("issue_notification_preferences")
+      .select("user_id, mode")
+      .eq("issue_id", issue.id)
+      .in("user_id", recipientIds);
+    if (preferenceError) return response({ error: "Could not load recipient notification preferences" }, 500);
+
+    const preferenceByUser = new Map(
+      (preferences ?? []).map((item: { user_id: string; mode: string }) => [item.user_id, item.mode]),
+    );
+    recipientIds = recipientIds.filter((id) => {
+      const mode = preferenceByUser.get(id) ?? "all";
+      return mode !== "muted" && !(mode === "important" && message.is_important !== true);
+    });
+    if (recipientIds.length === 0) return response({ sent: 0, reason: "Suppressed by recipient preferences" }, 200);
 
     const { data: tokens, error: tokenError } = await admin
       .from("device_push_tokens")
@@ -82,9 +98,10 @@ Deno.serve(async (req) => {
     const googleAccessToken = typeof authResult === "string" ? authResult : authResult?.token;
     if (!googleAccessToken) return response({ error: "Could not authorize with Firebase" }, 502);
 
+    const prefix = message.is_important === true ? "Important " : "";
     const title = senderProfile.role === "admin"
-      ? `Developer replied • Issue #${issue.issue_number}`
-      : `New user reply • Issue #${issue.issue_number}`;
+      ? `${prefix}Developer replied • Issue #${issue.issue_number}`
+      : `${prefix}New user reply • Issue #${issue.issue_number}`;
     const preview = String(message.body ?? "").replace(/\s+/g, " ").slice(0, 150);
     const notificationBody = `${senderProfile.username}: ${preview}`;
 
