@@ -1,5 +1,9 @@
 name: Build GMailGPU APK
 
+concurrency:
+  group: gmailgpu-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
