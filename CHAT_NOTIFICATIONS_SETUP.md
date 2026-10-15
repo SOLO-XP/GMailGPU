@@ -8,6 +8,8 @@ Run the SQL file [chat_notifications_presence.sql](chat_notifications_presence.s
 
 The SQL expects the core issues, profiles, and notifications tables to exist. It keeps row-level security enabled and does not grant public/anonymous users access to issue messages or online state.
 
+Also run [chat_read_receipts_typing_preferences.sql](chat_read_receipts_typing_preferences.sql) after the existing chat migration. This second, safe-to-rerun migration adds distinct Sent/Delivered/Read timestamps, short-lived typing indicators, per-issue alert preferences, an explicit important-reply flag, and notification filtering for muted/important-only modes. Existing users who already ran the first SQL file still need to run this second file once.
+
 ## 2. Configure Firebase client values
 
 Create a Firebase project, add an Android app with package name com.g57.issuehub, and enable Firebase Cloud Messaging. Add these GitHub Actions repository secrets under **Settings → Secrets and variables → Actions**:
@@ -35,6 +37,13 @@ The app's Android API 33+ notification permission must be granted on the device.
 
 After adding all four Firebase client values as GitHub Actions repository secrets, trigger a fresh **Build GMailGPU APK** run on the `feat/chat-notifications-online-presence` branch. The Firebase client values are embedded at build time, so an APK built before those secrets were added will not register an FCM token. Download the `GMailGPU-v0.3.4-beta` artifact from the successful workflow run, install it on test devices, sign in, and grant Android notification permission. Send a chat reply while the recipient app is in the background to verify push delivery. This is a test artifact, not a public GitHub Release.
 
-## 5. Online/offline meaning
+## 5. Chat collaboration features
+
+- A message marked as important can trigger a notification for users set to important-only alerts.
+- Each issue has its own alert mode: all replies, important replies only, or muted. Muting affects alerts only; messages remain in the chat.
+- Message states are separate: Sent means the message was saved; Delivered means the other account's app fetched it; Read means the conversation was opened and the recipient marked it read.
+- The typing indicator is a short-lived heartbeat and automatically expires when the user stops typing, leaves the issue, or loses connectivity.
+
+## 6. Online/offline meaning
 
 GMailGPU reports a user as online only while the app is active and has checked in recently. The status expires after a short stale window if the device loses connection or the app is force-stopped. "Offline" means no recent check-in; it does not prove the person is unavailable.
