@@ -295,6 +295,34 @@ create trigger set_game_discussion_username
   before insert on public.game_report_discussions
   for each row execute function public.set_game_discussion_username();
 
+-- Restrict evidence reads to the owner, visible game reports, or an admin.
+-- The second path segment is the compatibility report UUID: <user UUID>/<report UUID>/<file>.
+drop policy if exists "Read community game evidence" on storage.objects;
+create policy "Read community game evidence"
+  on storage.objects
+  for select
+  to authenticated
+  using (
+    bucket_id = 'game-evidence'
+    and (
+      (storage.foldername(name))[1] = auth.uid()::text
+      or exists (
+        select 1
+        from public.game_compatibility_reports r
+        where r.id::text = (storage.foldername(name))[2]
+          and (
+            r.review_status <> 'rejected'
+            or r.user_id = auth.uid()
+            or exists (
+              select 1
+              from public.profiles p
+              where p.id = auth.uid() and p.role::text = 'admin'
+            )
+          )
+      )
+    )
+  );
+
 -- Abuse reports are private to the reporter and authorized admins.
 create table if not exists public.game_report_flags (
   id uuid primary key default gen_random_uuid(),
