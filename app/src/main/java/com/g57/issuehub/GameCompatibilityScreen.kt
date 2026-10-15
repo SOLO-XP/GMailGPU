@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -143,7 +144,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     fun openEvidence(path: String) {
         scope.launch {
             runCatching {
-                client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = 20.minutes(20))
+                client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = 20.minutes)
             }.onSuccess { url ->
                 runCatching { uriHandler.openUri(url) }
                     .onFailure { error = "Couldn't open evidence: ${it.message}" }
