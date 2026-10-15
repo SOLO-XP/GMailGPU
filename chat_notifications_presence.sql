@@ -4,6 +4,40 @@
 
 begin;
 
+-- Ensure issue chat exists on installations that only ran the base schema.
+create table if not exists public.issue_messages (
+  id uuid primary key default gen_random_uuid(),
+  issue_id uuid not null references public.issues(id) on delete cascade,
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null check (length(trim(body)) between 1 and 4000),
+  created_at timestamptz not null default now()
+);
+create index if not exists issue_messages_issue_created_idx
+  on public.issue_messages(issue_id, created_at);
+
+alter table public.issue_messages enable row level security;
+grant select, insert on public.issue_messages to authenticated;
+
+drop policy if exists "issue chat read owner admin" on public.issue_messages;
+create policy "issue chat read owner admin"
+on public.issue_messages for select to authenticated
+using (
+  exists (
+    select 1 from public.issues i
+    where i.id = issue_id and (i.user_id = auth.uid() or public.is_admin())
+  )
+);
+
+drop policy if exists "issue chat insert owner admin" on public.issue_messages;
+create policy "issue chat insert owner admin"
+on public.issue_messages for insert to authenticated
+with check (
+  sender_id = auth.uid() and exists (
+    select 1 from public.issues i
+    where i.id = issue_id and (i.user_id = auth.uid() or public.is_admin())
+  )
+);
+
 -- Live/last-seen presence. A client refreshes last_seen_at while the app is foregrounded.
 create table if not exists public.user_presence (
   user_id uuid primary key references public.profiles(id) on delete cascade,
