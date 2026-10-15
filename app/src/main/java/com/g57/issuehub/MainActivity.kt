@@ -53,6 +53,7 @@ import com.g57.issuehub.data.G57Repository
 import com.g57.issuehub.data.SupabaseProvider
 import com.g57.issuehub.data.Issue
 import com.g57.issuehub.data.Notification
+import com.g57.issuehub.data.UserPresence
 import com.g57.issuehub.ui.*
 import java.util.Locale
 
