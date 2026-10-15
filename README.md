@@ -36,6 +36,7 @@
 - 🔗 **Mali Driver Developers** menu with links to community driver repositories.
 - ⚖️ **Evidence-first driver guide** — no claimed universal winner between System Driver and PanVK; includes per-GPU visual references for G52/G57/G615/G720.
 - 🧪 **Local Driver Test Lab** — save average/minimum FPS, visual issues, crashes and notes for each GPU/game/driver; compare saved System Driver and PanVK entries and share the results. Records stay on the device until shared.
+- 🎮 **Game Compatibility Library** — browse community results by game/GPU/driver and submit structured evidence with screenshots/videos, game and device details, System Driver vs PanVK, Winlator/GameHub, Wine, DXVK, VKD3D-Proton, Box64, resolution, graphics settings, average/minimum FPS, crashes, and rendering defects. Results are labeled as community-submitted until verified; FPS comparisons are only meaningful when test conditions are similar.
 - 🧭 **Quick Troubleshooter** for black textures, Vulkan startup errors, low FPS/stutter, and crashes, with a practical checklist and direct bug-report link.
 - 🟢 **Driver choice guide** for Mali-G57/G52/G615/G720: compare the system driver with experimental PanVK and learn when to try each option. Results depend on the device, driver build, and game.
 - 🖼️ **In-app image preview** for issue attachments, with an option to open the signed image link externally.
@@ -56,6 +57,8 @@ A successful workflow run means the build job completed; it does not by itself p
 Issues with no admin/developer review for 14 days are automatically moved to **Closed**. The issue receives a clear closure note and an in-app notification. The owner can reopen a closed issue from its details page.
 
 For an existing Supabase database, run `supabase_14_day_auto_close.sql` once in the Supabase SQL Editor. Make sure the Supabase Cron (`pg_cron`) extension is enabled; the SQL schema schedules the check hourly. New database setups can use the updated `supabase_schema.sql`.
+
+For the **Game Compatibility Library**, run `supabase_game_compatibility.sql` once in the Supabase SQL Editor. This creates the report table, row-level security rules, and private `game-evidence` storage bucket. Reports require at least one image/video and are initially marked `community`, not verified. Admins can review evidence and set `review_status` to `verified` or `rejected` in the Supabase table editor; do not label a result verified without checking the evidence.
 
 ## 📘 How to use GMailGPU
 
