@@ -69,7 +69,27 @@ data class IssueMessage(
     @SerialName("issue_id") val issueId: String,
     @SerialName("sender_id") val senderId: String,
     val body: String,
+    @SerialName("is_important") val isImportant: Boolean = false,
+    @SerialName("delivered_at") val deliveredAt: String? = null,
+    @SerialName("read_at") val readAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+data class IssueTypingState(
+    @SerialName("issue_id") val issueId: String,
+    @SerialName("user_id") val userId: String,
+    val username: String,
+    val role: String,
+    @SerialName("expires_at") val expiresAt: String
+)
+
+@Serializable
+data class IssueNotificationPreference(
+    @SerialName("user_id") val userId: String,
+    @SerialName("issue_id") val issueId: String,
+    val mode: String = "all",
+    @SerialName("updated_at") val updatedAt: String? = null
 )
 
 @Serializable
