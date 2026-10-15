@@ -191,7 +191,72 @@ class G57Repository {
             order(column = "created_at", order = Order.ASCENDING)
         }.decodeList()
 
-    suspend fun sendIssueMessage(issueId: String, body: String): IssueMessage {
+    suspend fun markMessagesDelivered(messages: List<IssueMessage>, readerId: String) {
+        val now = java.time.Instant.now().toString()
+        messages.filter { it.senderId != readerId && it.deliveredAt == null }.forEach { message ->
+            sb.from("issue_messages").update(buildJsonObject {
+                put("delivered_at", now)
+            }) {
+                filter { eq("id", message.id); eq("issue_id", message.issueId) }
+            }
+        }
+    }
+
+    suspend fun markIssueMessagesRead(issueId: String, readerId: String) {
+        val incoming = issueMessages(issueId).filter { it.senderId != readerId && it.readAt == null }
+        if (incoming.isEmpty()) return
+        val now = java.time.Instant.now().toString()
+        incoming.forEach { message ->
+            sb.from("issue_messages").update(buildJsonObject {
+                if (message.deliveredAt == null) put("delivered_at", now)
+                put("read_at", now)
+            }) {
+                filter { eq("id", message.id); eq("issue_id", issueId) }
+            }
+        }
+    }
+
+    suspend fun issueTypingStates(issueId: String): List<IssueTypingState> =
+        sb.from("issue_typing_states").select(Columns.ALL) {
+            filter { eq("issue_id", issueId) }
+        }.decodeList()
+
+    suspend fun updateTypingState(issueId: String, active: Boolean) {
+        val userId = sb.auth.currentUserOrNull()?.id ?: return
+        if (active) {
+            sb.from("issue_typing_states").upsert(buildJsonObject {
+                put("issue_id", issueId)
+                put("user_id", userId)
+                put("expires_at", java.time.Instant.now().plusSeconds(10).toString())
+            }) { onConflict = "issue_id,user_id" }
+        } else {
+            sb.from("issue_typing_states").delete {
+                filter { eq("issue_id", issueId); eq("user_id", userId) }
+            }
+        }
+    }
+
+    suspend fun issueNotificationMode(issueId: String): String {
+        val userId = sb.auth.currentUserOrNull()?.id ?: return "all"
+        return runCatching {
+            sb.from("issue_notification_preferences").select(Columns.ALL) {
+                filter { eq("issue_id", issueId); eq("user_id", userId) }
+            }.decodeList<IssueNotificationPreference>().firstOrNull()?.mode ?: "all"
+        }.getOrDefault("all")
+    }
+
+    suspend fun setIssueNotificationMode(issueId: String, mode: String) {
+        require(mode in setOf("all", "important", "muted")) { "Choose a valid notification mode." }
+        val userId = sb.auth.currentUserOrNull()?.id ?: error("Sign in before changing notification preferences.")
+        sb.from("issue_notification_preferences").upsert(buildJsonObject {
+            put("issue_id", issueId)
+            put("user_id", userId)
+            put("mode", mode)
+            put("updated_at", java.time.Instant.now().toString())
+        }) { onConflict = "user_id,issue_id" }
+    }
+
+    suspend fun sendIssueMessage(issueId: String, body: String, important: Boolean = false): IssueMessage {
         val cleanBody = body.trim()
         require(cleanBody.isNotEmpty()) { "Write a message first." }
         require(cleanBody.length <= 4000) { "Messages must be 4000 characters or less." }
@@ -200,6 +265,7 @@ class G57Repository {
             put("issue_id", issueId)
             put("sender_id", senderId)
             put("body", cleanBody)
+            put("is_important", important)
         }) { select() }.decodeSingle<IssueMessage>()
         // Chat delivery must succeed even when optional Firebase push has not been configured.
         runCatching { requestChatPush(sent.id) }
