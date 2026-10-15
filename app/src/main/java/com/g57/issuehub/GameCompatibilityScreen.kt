@@ -86,6 +86,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
+    var gpuFilter by remember { mutableStateOf("All GPUs") }
     var game by remember { mutableStateOf("") }
     var gameVersion by remember { mutableStateOf("") }
     var gpu by remember { mutableStateOf("Mali-G57") }
@@ -294,23 +295,38 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             }
         } else {
             OutlinedTextField(search, { search = it }, label = { Text("Search game, GPU, driver, or emulator") }, leadingIcon = { Icon(Icons.Default.Search, null) }, modifier = Modifier.fillMaxWidth().padding(16.dp), singleLine = true)
-            val filtered = reports.filter {
-                listOf(it.gameName, it.gpuFamily, it.driverType, it.emulatorName, it.outcome, it.deviceModel.orEmpty())
-                    .any { value -> value.contains(search, ignoreCase = true) }
+            val filtered = reports.filter { report ->
+                (gpuFilter == "All GPUs" || report.gpuFamily == gpuFilter) &&
+                    listOf(report.gameName, report.gpuFamily, report.driverType, report.emulatorName, report.outcome, report.deviceModel.orEmpty())
+                        .any { value -> value.contains(search, ignoreCase = true) }
             }
-            val sameGame = reports.filter { it.gameName.equals(game.trim(), true) && it.gpuFamily == gpu && it.averageFps != null }
-            val system = sameGame.filter { it.driverType == "System Driver" }.mapNotNull { it.averageFps }
-            val panvk = sameGame.filter { it.driverType == "PanVK" }.mapNotNull { it.averageFps }
+            val comparisons = filtered.filter { it.averageFps != null }
+                .groupBy { it.gameName.lowercase() to it.gpuFamily }
+                .mapNotNull { (_, rows) ->
+                    val systemRuns = rows.filter { it.driverType == "System Driver" && it.averageFps != null }
+                    val panvkRuns = rows.filter { it.driverType == "PanVK" && it.averageFps != null }
+                    if (systemRuns.isNotEmpty() && panvkRuns.isNotEmpty()) Triple(rows.first(), systemRuns, panvkRuns) else null
+                }.take(4)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (listOf("All GPUs") + gameGpuOptions.filter { it != "Other" }).forEach { option ->
+                    FilterChip(selected = gpuFilter == option, onClick = { gpuFilter = option }, label = { Text(option) })
+                }
+            }
             LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
                 if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if (filtered.isEmpty() && !loading) item { Text("No community results yet. Add the first evidence-backed game report.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(16.dp)) }
-                if (system.isNotEmpty() || panvk.isNotEmpty()) item {
+                items(comparisons, key = { "compare-${it.first.id}" }) { comparison ->
+                    val base = comparison.first
+                    val systemRuns = comparison.second
+                    val panvkRuns = comparison.third
+                    val systemAverage = systemRuns.mapNotNull { it.averageFps }.average()
+                    val panvkAverage = panvkRuns.mapNotNull { it.averageFps }.average()
                     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer), modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("FPS comparison • ${game.ifBlank { "enter a game in Add Game Result" }} • $gpu", fontWeight = FontWeight.Bold)
-                            Text("System Driver average: ${system.takeIf { it.isNotEmpty() }?.average()?.let { "%.1f".format(it) + " FPS" } ?: "No data"}")
-                            Text("PanVK average: ${panvk.takeIf { it.isNotEmpty() }?.average()?.let { "%.1f".format(it) + " FPS" } ?: "No data"}")
-                            Text("Community-submitted results only. Averages can be misleading when devices, settings, or builds differ.", style = MaterialTheme.typography.bodySmall)
+                            Text("FPS comparison • ${base.gameName} • ${base.gpuFamily}", fontWeight = FontWeight.Bold)
+                            Text("System Driver average: ${"%.1f".format(systemAverage)} FPS (${systemRuns.size} run(s))")
+                            Text("PanVK average: ${"%.1f".format(panvkAverage)} FPS (${panvkRuns.size} run(s))")
+                            Text("Community-submitted results only. Devices, driver builds, resolution, and settings may differ; this is not a controlled benchmark.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
