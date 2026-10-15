@@ -36,6 +36,7 @@ data class Issue(
     @SerialName("android_version") val androidVersion: String? = null,
     @SerialName("device_model") val deviceModel: String? = null,
     @SerialName("developer_note") val developerNote: String? = null,
+    @SerialName("last_admin_viewed_at") val lastAdminViewedAt: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
