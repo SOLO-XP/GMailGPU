@@ -44,6 +44,12 @@
 
 A successful workflow run means the build job completed; it does not by itself prove that every feature has been tested on a physical device.
 
+## ⏱️ Automatic closure after 14 days
+
+Issues with no admin/developer review for 14 days are automatically moved to **Closed**. The issue receives a clear closure note and an in-app notification. The owner can reopen a closed issue from its details page.
+
+For an existing Supabase database, run `supabase_14_day_auto_close.sql` once in the Supabase SQL Editor. Make sure the Supabase Cron (`pg_cron`) extension is enabled; the SQL schema schedules the check hourly. New database setups can use the updated `supabase_schema.sql`.
+
 ## 📘 How to use GMailGPU
 
 ### 1. Create an account
