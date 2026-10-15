@@ -581,7 +581,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                         Text("${gameGroups.size} games • ${filtered.size} test reports", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (filtered.count { it.reviewStatus == "verified" } > 0) {
-                        AssistChip(onClick = { sortBy = "Verified first" }, label = { Icon(Icons.Default.Verified, null); Spacer(Modifier.width(4.dp)); Text("${filtered.count { it.reviewStatus == "verified" }} verified") })
+                        AssistChip(onClick = { sortBy = "Verified first" }, label = { Icon(Icons.Default.CheckCircle, null); Spacer(Modifier.width(4.dp)); Text("${filtered.count { it.reviewStatus == "verified" }} verified") })
                     }
                 }
                 LazyVerticalGrid(
