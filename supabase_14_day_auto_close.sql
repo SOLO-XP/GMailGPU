@@ -106,6 +106,11 @@ begin
 end;
 $g57_notify$;
 
+drop trigger if exists issue_resolved_notification on public.issues;
+create trigger issue_resolved_notification
+after update of status on public.issues
+for each row execute procedure public.notify_issue_resolved();
+
 -- Enable pg_cron in Supabase first if it is not already enabled.
 create extension if not exists pg_cron with schema pg_catalog;
 
