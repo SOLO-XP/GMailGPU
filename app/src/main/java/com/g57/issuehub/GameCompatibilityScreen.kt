@@ -578,6 +578,127 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             }
         }
     }
+
+    previewUrl?.let { url ->
+        val html = if (previewVideo) {
+            "<html><body style='margin:0;background:#080a0f;display:flex;align-items:center;justify-content:center;height:100vh'><video controls playsinline style='width:100%;max-height:100vh' src='$url'></video></body></html>"
+        } else {
+            "<html><body style='margin:0;background:#080a0f;display:flex;align-items:center;justify-content:center;height:100vh'><img src='$url' style='max-width:100%;max-height:100vh;object-fit:contain'/></body></html>"
+        }
+        Dialog(onDismissRequest = { previewUrl = null }) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (previewVideo) "Gameplay evidence" else "Screenshot evidence", modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                        IconButton(onClick = { previewUrl = null }) { Icon(Icons.Default.Close, contentDescription = "Close preview") }
+                    }
+                    AndroidView(
+                        factory = { viewContext ->
+                            WebView(viewContext).apply {
+                                webViewClient = WebViewClient()
+                                settings.javaScriptEnabled = false
+                                settings.domStorageEnabled = false
+                                loadDataWithBaseURL(url, html, "text/html", "UTF-8", null)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(430.dp)
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = {
+                            runCatching { uriHandler.openUri(url) }
+                                .onFailure { error = "Could not open evidence externally: ${it.message}" }
+                        }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); Text("OPEN EXTERNALLY") }
+                        Button(onClick = { previewUrl = null }, modifier = Modifier.weight(1f)) { Text("DONE") }
+                    }
+                    Text("Evidence is from a community submission. Review the test conditions before drawing conclusions.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+
+    duplicateReport?.let { duplicate ->
+        AlertDialog(
+            onDismissRequest = { duplicateReport = null },
+            icon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+            title = { Text("Similar test already exists") },
+            text = {
+                Text("A report for ${duplicate.gameName} • ${duplicate.gpuFamily} • ${duplicate.driverType} on ${duplicate.deviceModel ?: "an unspecified device"} already exists. Open the existing report or submit this run as a new result if the test conditions/version are different.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    search = duplicate.gameName
+                    gpuFilter = duplicate.gpuFamily
+                    driverFilter = duplicate.driverType
+                    duplicateReport = null
+                    showForm = false
+                }) { Text("FIND EXISTING") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicateReport = null; submit(forceDuplicate = true) }) { Text("SUBMIT NEW TEST") }
+            }
+        )
+    }
+
+    discussionReport?.let { report ->
+        AlertDialog(
+            onDismissRequest = { discussionReport = null },
+            title = { Text("Discussion • ${report.gameName}") },
+            text = {
+                Column(
+                    Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Ask about the test setup or share a reproducible finding. Keep comments respectful and do not post passwords or tokens.", style = MaterialTheme.typography.bodySmall)
+                    if (discussionLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                    if (discussions.isEmpty() && !discussionLoading) Text("No comments yet. Start the discussion.")
+                    discussions.forEach { comment ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(comment.username, modifier = Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                                    Text(comment.createdAt.orEmpty().take(10), style = MaterialTheme.typography.labelSmall)
+                                }
+                                Text(comment.body)
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = discussionDraft,
+                        onValueChange = { discussionDraft = it.take(2000) },
+                        label = { Text("Add a comment") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 4
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { postDiscussion() }, enabled = discussionDraft.isNotBlank() && !discussionLoading) { Text("POST COMMENT") }
+            },
+            dismissButton = {
+                TextButton(onClick = { discussionReport = null }) { Text("CLOSE") }
+            }
+        )
+    }
+
+    reportToFlag?.let { report ->
+        AlertDialog(
+            onDismissRequest = { reportToFlag = null },
+            icon = { Icon(Icons.Default.Flag, contentDescription = null) },
+            title = { Text("Report a community result") },
+            text = { Text("Send this result to moderators for review because the result may be misleading. Please use report flags responsibly; do not include private information.") },
+            confirmButton = {
+                TextButton(onClick = { reportToFlag = null; flagReport(report) }) { Text("SEND TO MODERATORS") }
+            },
+            dismissButton = {
+                TextButton(onClick = { reportToFlag = null }) { Text("CANCEL") }
+            }
+        )
+    }
 }
 
 @Composable
