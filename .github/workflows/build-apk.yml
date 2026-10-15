@@ -19,6 +19,10 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_APPLICATION_ID: ${{ secrets.FIREBASE_APPLICATION_ID }}
+      FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_HOME: /usr/local/lib/android/sdk
 
@@ -111,12 +115,12 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK"
           echo "Checking package name and version..."
           "$AAPT" dump badging "$APK" | tee apk-badging.txt
-          grep -F "package: name='com.g57.issuehub' versionCode='18' versionName='0.3.3-beta'" apk-badging.txt
+          grep -F "package: name='com.g57.issuehub' versionCode='19' versionName='0.3.4-beta'" apk-badging.txt
           sha256sum "$APK" | tee app-debug.apk.sha256
           SHA256="$(sha256sum "$APK" | cut -d ' ' -f 1)"
           {
             echo "### Verified GMailGPU APK"
-            echo "- Version: 0.3.3-beta (18)"
+            echo "- Version: 0.3.4-beta (19)"
             echo "- APK size: $(stat -c '%s bytes' "$APK")"
             echo "- APK signature: passed"
             echo "- SHA-256: `$SHA256`"
@@ -125,7 +129,7 @@ jobs:
       - name: Upload verified APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: GMailGPU-v0.3.3-beta
+          name: GMailGPU-v0.3.4-beta
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app-debug.apk.sha256

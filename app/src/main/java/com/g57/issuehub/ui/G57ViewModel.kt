@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.g57.issuehub.GMailGpuPush
 import com.g57.issuehub.data.*
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -77,7 +79,11 @@ data class UiState(
     val attachments: List<Attachment> = emptyList(),
     val chatMessages: List<IssueMessage> = emptyList(),
     val chatDraft: String = "",
+    val chatTypingStates: List<IssueTypingState> = emptyList(),
+    val chatNotificationMode: String = "all",
+    val chatMarkImportant: Boolean = false,
     val notifications: List<Notification> = emptyList(),
+    val presenceRecords: List<UserPresence> = emptyList(),
     val resolvedUsers: List<ResolvedUser> = emptyList(),
     val userProfiles: List<Profile> = emptyList(),
     val selectedFiles: List<PickedFile> = emptyList(),
@@ -103,6 +109,8 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = G57Repository()
     private val _ui = MutableStateFlow(UiState())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
+    private var typingUpdateJob: Job? = null
+    @Volatile private var lastChatTypingAt: Long = 0L
 
     init {
         val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
@@ -486,6 +494,9 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                 attachments = emptyList(),
                 chatMessages = emptyList(),
                 chatDraft = "",
+                chatTypingStates = emptyList(),
+                chatNotificationMode = "all",
+                chatMarkImportant = false,
                 selectedFiles = emptyList(),
                 loading = true,
                 error = null
@@ -536,21 +547,181 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun setChatDraft(value: String) = update { copy(chatDraft = value.take(4000)) }
+    fun setChatDraft(value: String) {
+        val clean = value.take(4000)
+        update { copy(chatDraft = clean) }
+        val issueId = when (val current = _ui.value.screen) {
+            is ScreenState.UserIssue -> current.issue.id
+            is ScreenState.AdminIssue -> current.issue.id
+            else -> null
+        } ?: return
 
-    fun refreshIssueMessages(issueId: String) = loadIssueMessages(issueId)
+        if (clean.isNotBlank()) lastChatTypingAt = System.currentTimeMillis()
+        typingUpdateJob?.cancel()
+        typingUpdateJob = viewModelScope.launch {
+            if (clean.isBlank()) {
+                runCatching { repo.updateTypingState(issueId, false) }
+                update { copy(chatTypingStates = chatTypingStates.filterNot { it.userId == _ui.value.profile?.id }) }
+            } else {
+                delay(350)
+                if (System.currentTimeMillis() - lastChatTypingAt < 8_000L) {
+                    runCatching { repo.updateTypingState(issueId, true) }
+                }
+            }
+        }
+    }
 
-    private fun loadIssueMessages(issueId: String) = viewModelScope.launch {
-        if (!SupabaseProvider.enabled) return@launch
-        runCatching { repo.issueMessages(issueId) }
-            .onSuccess { messages -> update { copy(chatMessages = messages) } }
-            .onFailure { e ->
-                update { copy(error = "Couldn't load issue chat. Apply supabase_issue_chat.sql in Supabase SQL Editor. ${e.message.orEmpty()}") }
+    fun setChatMarkImportant(important: Boolean) = update { copy(chatMarkImportant = important) }
+
+    fun setChatNotificationMode(issueId: String, mode: String) = viewModelScope.launch {
+        if (mode !in setOf("all", "important", "muted")) return@launch
+        runCatching { repo.setIssueNotificationMode(issueId, mode) }
+            .onSuccess {
+                update {
+                    copy(
+                        chatNotificationMode = mode,
+                        success = when (mode) {
+                            "important" -> "Only important replies will alert you for this issue."
+                            "muted" -> "Notifications muted for this issue. Messages are still saved."
+                            else -> "All reply notifications enabled for this issue."
+                        },
+                        error = null
+                    )
+                }
+            }
+            .onFailure {
+                update {
+                    copy(error = "Notification settings need chat_read_receipts_typing_preferences.sql applied in Supabase.")
+                }
             }
     }
 
+    fun markIssueMessagesRead(issueId: String) = viewModelScope.launch {
+        val readerId = _ui.value.profile?.id ?: return@launch
+        if (!SupabaseProvider.enabled) return@launch
+        runCatching {
+            repo.markIssueMessagesRead(issueId, readerId)
+            repo.issueMessages(issueId)
+        }.onSuccess { messages ->
+            update { copy(chatMessages = messages) }
+        }.onFailure {
+            update {
+                copy(error = "Read receipts need chat_read_receipts_typing_preferences.sql applied in Supabase.")
+            }
+        }
+    }
+
+    fun refreshIssueMessages(issueId: String) = loadIssueMessages(issueId)
+
+    /**
+     * Called while the activity is in the foreground. It refreshes both presence and the
+     * in-app notification feed. A persistent cursor means replies received while the app
+     * was closed can still be surfaced when the user next opens it.
+     */
+    fun refreshChatSignals() = viewModelScope.launch {
+        val profile = _ui.value.profile ?: return@launch
+        if (!SupabaseProvider.enabled) return@launch
+        val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+        val cursorKey = "gmailgpu_notification_cursor_${profile.id}"
+        val cursor = prefs.getString(cursorKey, null)
+
+        val notifications = runCatching { repo.notifications(profile.id) }.getOrNull()
+        val presence = runCatching { repo.visiblePresence() }.getOrNull()
+        if (presence != null) update { copy(presenceRecords = presence) }
+        if (notifications != null) {
+            val latest = notifications.mapNotNull { it.createdAt }.maxOrNull()
+            if (cursor == null) {
+                // First run: establish a baseline without firing old historical alerts.
+                if (latest != null) prefs.edit().putString(cursorKey, latest).apply()
+            } else {
+                notifications
+                    .filter { notification ->
+                        notification.createdAt != null &&
+                            notification.createdAt > cursor &&
+                            notification.title.contains("reply", ignoreCase = true) &&
+                            !notification.issueId.isNullOrBlank()
+                    }
+                    .sortedBy { it.createdAt.orEmpty() }
+                    .forEach { notification ->
+                        GMailGpuPush.showOnce(
+                            getApplication(),
+                            notification.id,
+                            notification.title,
+                            notification.message,
+                            notification.issueId.orEmpty()
+                        )
+                    }
+                if (latest != null && latest > cursor) prefs.edit().putString(cursorKey, latest).apply()
+            }
+            update { copy(notifications = notifications) }
+        }
+    }
+
+    fun setPresenceOnline(online: Boolean) = viewModelScope.launch {
+        if (_ui.value.profile == null || !SupabaseProvider.enabled) return@launch
+        runCatching {
+            repo.updatePresence(online)
+            repo.visiblePresence()
+        }.onSuccess { records ->
+            update { copy(presenceRecords = records) }
+        }
+    }
+
+    fun registerPushToken(token: String) = viewModelScope.launch {
+        if (_ui.value.profile == null || !SupabaseProvider.enabled || token.isBlank()) return@launch
+        runCatching { repo.registerPushToken(token) }
+        // Keep token registration failures non-blocking: issue chat must still work.
+    }
+
+    fun openIssueFromNotification(issueId: String) = viewModelScope.launch {
+        val profile = _ui.value.profile ?: return@launch
+        if (!SupabaseProvider.enabled || issueId.isBlank()) return@launch
+        runCatching { repo.issueById(issueId) }
+            .onSuccess { issue -> openIssue(issue, admin = profile.role == "admin") }
+            .onFailure { failure ->
+                update { copy(error = "Could not open the issue from this notification. Refresh your issue list and try again. ${failure.message.orEmpty()}") }
+                if (profile.role == "admin") loadIssues(true) else loadUserData(profile.id)
+            }
+    }
+
+    private fun loadIssueMessages(issueId: String) = viewModelScope.launch {
+        if (!SupabaseProvider.enabled) return@launch
+        val readerId = _ui.value.profile?.id
+        runCatching {
+            if (readerId != null) {
+                val typingActive = _ui.value.chatDraft.isNotBlank() &&
+                    System.currentTimeMillis() - lastChatTypingAt < 8_000L
+                repo.updateTypingState(issueId, typingActive)
+            }
+            val messages = repo.issueMessages(issueId)
+            if (readerId != null) runCatching { repo.markMessagesDelivered(messages, readerId) }
+            val refreshed = runCatching { repo.issueMessages(issueId) }.getOrDefault(messages)
+            val now = java.time.Instant.now()
+            val typing = runCatching { repo.issueTypingStates(issueId) }
+                .getOrDefault(emptyList())
+                .filter { state ->
+                    state.userId != readerId &&
+                        runCatching { java.time.Instant.parse(state.expiresAt).isAfter(now) }.getOrDefault(false)
+                }
+            val mode = repo.issueNotificationMode(issueId)
+            Triple(refreshed, typing, mode)
+        }.onSuccess { (messages, typing, mode) ->
+            update {
+                copy(
+                    chatMessages = messages,
+                    chatTypingStates = typing,
+                    chatNotificationMode = mode
+                )
+            }
+        }.onFailure {
+            update { copy(error = "Couldn't load issue chat. Apply supabase_issue_chat.sql in Supabase SQL Editor.") }
+        }
+    }
+
     fun sendIssueMessage(issueId: String) = viewModelScope.launch {
-        val body = _ui.value.chatDraft.trim()
+        val state = _ui.value
+        val body = state.chatDraft.trim()
+        val important = state.chatMarkImportant
         if (body.isBlank()) {
             update { copy(error = "Write a message first.") }
             return@launch
@@ -561,12 +732,22 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         }
         update { copy(loading = true, error = null, success = null) }
         runCatching {
-            repo.sendIssueMessage(issueId, body)
+            repo.sendIssueMessage(issueId, body, important)
+            runCatching { repo.updateTypingState(issueId, false) }
             repo.issueMessages(issueId)
         }.onSuccess { messages ->
-            update { copy(loading = false, chatMessages = messages, chatDraft = "", success = "Message sent.") }
-        }.onFailure { e ->
-            update { copy(loading = false, error = e.message ?: "Message could not be sent.") }
+            lastChatTypingAt = 0L
+            update {
+                copy(
+                    loading = false,
+                    chatMessages = messages,
+                    chatDraft = "",
+                    chatMarkImportant = false,
+                    success = "Message sent."
+                )
+            }
+        }.onFailure {
+            update { copy(loading = false, error = "Message could not be sent. Apply chat_read_receipts_typing_preferences.sql if chat upgrades are not active.") }
         }
     }
 
@@ -710,20 +891,39 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
             .onSuccess { update { copy(notifications = notifications.map { if (it.id == notification.id) it.copy(readAt = "read") else it }) } }
     }
 
-    fun back() = update {
-        copy(
-            screen = when (profile?.role) {
-                "admin" -> ScreenState.AdminHome
-                else -> ScreenState.UserHome
-            },
-            attachments = emptyList(),
-            error = null
-        )
+    fun back() {
+        val current = _ui.value.screen
+        val issueId = when (current) {
+            is ScreenState.UserIssue -> current.issue.id
+            is ScreenState.AdminIssue -> current.issue.id
+            else -> null
+        }
+        typingUpdateJob?.cancel()
+        if (issueId != null) viewModelScope.launch { runCatching { repo.updateTypingState(issueId, false) } }
+        lastChatTypingAt = 0L
+        update {
+            copy(
+                screen = when (profile?.role) {
+                    "admin" -> ScreenState.AdminHome
+                    else -> ScreenState.UserHome
+                },
+                attachments = emptyList(),
+                chatDraft = "",
+                chatTypingStates = emptyList(),
+                chatMarkImportant = false,
+                error = null
+            )
+        }
     }
 
     fun logout() = viewModelScope.launch {
-        if (SupabaseProvider.enabled) runCatching { repo.signOut() }
         val prefs = getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0)
+        if (SupabaseProvider.enabled) {
+            val token = prefs.getString("gmailgpu_pending_fcm_token", null)
+            runCatching { repo.updatePresence(false) }
+            if (!token.isNullOrBlank()) runCatching { repo.deletePushToken(token) }
+            runCatching { repo.signOut() }
+        }
         val savedTheme = prefs.getString("theme_choice", "Violet") ?: "Violet"
         val savedLanguage = prefs.getString("app_language", "system") ?: "system"
         _ui.value = UiState(
