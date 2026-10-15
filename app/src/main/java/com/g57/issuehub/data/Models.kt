@@ -73,6 +73,15 @@ data class IssueMessage(
 )
 
 @Serializable
+data class UserPresence(
+    @SerialName("user_id") val userId: String,
+    val username: String,
+    val role: String,
+    @SerialName("is_online") val isOnline: Boolean = false,
+    @SerialName("last_seen_at") val lastSeenAt: String? = null
+)
+
+@Serializable
 data class CreateIssueInput(
     @SerialName("user_id") val userId: String,
     val title: String,
