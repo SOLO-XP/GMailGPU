@@ -34,6 +34,9 @@
 - 🔔 **Issue status notifications** — in-app notification when an issue status changes to Fixed/Closed.
 - 🕶️ **Sensitive admin screen protection** — Android screenshot/screen-capture protection is enabled on the admin user-management and resolved-users screens to reduce accidental exposure of usernames. This is not a guarantee against every form of capture or disclosure.
 - 🔗 **Mali Driver Developers** menu with links to community driver repositories.
+- ⚖️ **Evidence-first driver guide** — no claimed universal winner between System Driver and PanVK; includes per-GPU visual references for G52/G57/G615/G720.
+- 🧪 **Local Driver Test Lab** — save average/minimum FPS, visual issues, crashes and notes for each GPU/game/driver; compare saved System Driver and PanVK entries and share the results. Records stay on the device until shared.
+- 🧭 **Quick Troubleshooter** for black textures, Vulkan startup errors, low FPS/stutter, and crashes, with a practical checklist and direct bug-report link.
 - 🟢 **Driver choice guide** for Mali-G57/G52/G615/G720: compare the system driver with experimental PanVK and learn when to try each option. Results depend on the device, driver build, and game.
 - 🖼️ **In-app image preview** for issue attachments, with an option to open the signed image link externally.
 - 💡 **Feature suggestions and bug reports** shortcut in Settings that opens a new GitHub issue. Sanitize logs before sharing.
