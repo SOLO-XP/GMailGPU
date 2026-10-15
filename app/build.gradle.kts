@@ -24,8 +24,8 @@ android {
         applicationId = "com.g57.issuehub"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.3.3-beta"
+        versionCode = 19
+        versionName = "0.3.4-beta"
 
         val sbUrl = localProperties.getProperty("SUPABASE_URL", System.getenv("SUPABASE_URL") ?: "")
         val sbKey = localProperties.getProperty("SUPABASE_PUBLISHABLE_KEY", System.getenv("SUPABASE_PUBLISHABLE_KEY") ?: "")
@@ -98,7 +98,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
-    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("io.ktor:ktor-client-android:3.0.3")
     // On-device language detection and translation for issue chat.
