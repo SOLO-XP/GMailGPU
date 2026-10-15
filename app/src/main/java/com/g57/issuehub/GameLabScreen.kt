@@ -717,7 +717,7 @@ internal fun GameLabScreen(
 
         when (activeTab) {
             "Overview" -> {
-                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item {
                         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -768,7 +768,7 @@ internal fun GameLabScreen(
             }
 
             "Watchlist" -> {
-                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item { Text("Get an in-app alert when a new matching test is submitted.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     item { OutlinedTextField(watchGame, { watchGame = it }, label = { Text("Game name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
                     item { Text("GPU"); ChoiceChips(gameLabGpuChoices, watchGpu) { watchGpu = it } }
@@ -808,7 +808,7 @@ internal fun GameLabScreen(
             }
 
             "Configs" -> {
-                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item { Text("Store known-good configurations with the exact driver and translation-layer versions. Public sharing is optional.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     item { Text("CONFIGURATION DETAILS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     item { OutlinedTextField(configName, { configName = it }, label = { Text("Configuration name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
@@ -951,7 +951,7 @@ internal fun GameLabScreen(
             }
 
             "Profile & Stats" -> {
-                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item { Text("Tester profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     item { OutlinedTextField(profileName, { profileName = it }, label = { Text("Display name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
                     item { OutlinedTextField(profileBio, { profileBio = it.take(500) }, label = { Text("Short bio (max 500 chars)") }, modifier = Modifier.fillMaxWidth(), minLines = 3) }
@@ -1035,7 +1035,7 @@ internal fun GameLabScreen(
                     EmptyState("Developer tools are visible to accounts whose Supabase profile role is admin.")
                 } else {
                     val queue = reports.filter { it.reviewStatus == "community" }
-                    LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                    LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                         item { Text("Review queue • ${queue.size} community report(s)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                         item { Text("Review the image/video evidence and test details before marking a result Verified. Verification is not a promise of compatibility on every device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (queue.isEmpty()) item { EmptyState("No community reports are waiting for review.") }
@@ -1082,7 +1082,7 @@ internal fun GameLabScreen(
             }
 
             "Driver Updates" -> {
-                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 14.dp, bottom = 30.dp)) {
+                LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item {
                         Text("Driver Update Tracker", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Text("Checks GitHub's latest published Release API. Repositories without a GitHub Release are marked accordingly; development commits and custom builds may exist outside Releases.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
