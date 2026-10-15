@@ -21,6 +21,15 @@ alter table public.game_compatibility_reports
   add constraint game_compatibility_temperature_reasonable
   check (device_temperature_c is null or device_temperature_c between 0 and 150);
 
+grant select, insert, update, delete on public.game_compatibility_reports to authenticated;
+
+drop policy if exists "Delete own game compatibility report" on public.game_compatibility_reports;
+create policy "Delete own game compatibility report"
+  on public.game_compatibility_reports
+  for delete
+  to authenticated
+  using (user_id = auth.uid());
+
 create index if not exists game_compatibility_review_queue_idx
   on public.game_compatibility_reports (review_status, evidence_reviewed, created_at desc);
 
