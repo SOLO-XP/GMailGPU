@@ -34,6 +34,10 @@
 - 🔔 **Issue status notifications** — in-app notification when an issue status changes to Fixed/Closed.
 - 🕶️ **Sensitive admin screen protection** — Android screenshot/screen-capture protection is enabled on the admin user-management and resolved-users screens to reduce accidental exposure of usernames. This is not a guarantee against every form of capture or disclosure.
 - 🔗 **Mali Driver Developers** menu with links to community driver repositories.
+- 🟢 **Driver choice guide** for Mali-G57/G52/G615/G720: compare the system driver with experimental PanVK and learn when to try each option. Results depend on the device, driver build, and game.
+- 🖼️ **In-app image preview** for issue attachments, with an option to open the signed image link externally.
+- 💡 **Feature suggestions and bug reports** shortcut in Settings that opens a new GitHub issue. Sanitize logs before sharing.
+- ⏱️ **14-day unattended issue handling** — issues without an admin review for 14 days move to Closed with an explanation and notification; users can reopen them. See the database migration below.
 
 ## 📲 Install and update
 
