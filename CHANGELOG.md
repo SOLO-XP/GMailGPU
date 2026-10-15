@@ -1,5 +1,15 @@
 # Changelog
 
+## 🔔 0.3.4 Beta — Chat Alerts & Live Presence (COMING SOON)
+
+- Added online/offline and last-seen status for the issue owner and developer team, refreshed while the app is foregrounded.
+- Added an idempotent SQL setup file for presence, private device push tokens, and automatic notification rows for each new issue-chat message.
+- Added Android notification permission handling, a notification channel, duplicate suppression, and direct issue navigation from notification taps.
+- Added optional Firebase Cloud Messaging token registration and an authenticated server function for remote delivery while the app is in the background.
+- Chat automatically refreshes about every five seconds while an issue is open and the app is active.
+- Push delivery requires the included SQL setup, Firebase client configuration in build secrets, and a deployed server function with the private Firebase service-account secret; secrets are not stored in the repository.
+- Planned package version: 0.3.4-beta (versionCode 19). Not published yet.
+
 ## 🌐 0.3.3 Beta — UI Translation & Issue Update Hotfix
 
 - Extended the translation-aware text component to support the full Material text API and reused it across Community Game Lab and Game Compatibility Library.
