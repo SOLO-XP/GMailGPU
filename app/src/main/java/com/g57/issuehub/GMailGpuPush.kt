@@ -48,7 +48,7 @@ internal object GMailGpuPush {
 
     suspend fun tokenOrNull(context: Context): String? = runCatching {
         val app = ensureFirebase(context) ?: return@runCatching null
-        FirebaseMessaging.getInstance(app).token.await()
+        FirebaseMessaging.getInstance().token.await()
     }.getOrNull()
 
     fun createChannel(context: Context) {
