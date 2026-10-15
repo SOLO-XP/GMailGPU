@@ -695,8 +695,8 @@ internal fun GameLabScreen(
         ) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
             Column(Modifier.weight(1f)) {
-                Text("GMailGPU Community Game Lab", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Compatibility • diagnostics • community", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppText("GMailGPU Community Game Lab", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                AppText("Compatibility • diagnostics • community", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { refreshData() }, enabled = !loading) { Icon(Icons.Default.Refresh, contentDescription = "Refresh") }
         }
@@ -707,12 +707,12 @@ internal fun GameLabScreen(
         ) {
             listOf("Overview", "Watchlist", "Configs", "Troubleshoot", "Logs", "Profile & Stats", "Admin Review", "Driver Updates")
                 .forEach { tab ->
-                    FilterChip(selected = activeTab == tab, onClick = { activeTab = tab }, label = { Text(tab) })
+                    FilterChip(selected = activeTab == tab, onClick = { activeTab = tab }, label = { AppText(tab) })
                 }
         }
-        if (notice != null) Text(notice!!, Modifier.padding(horizontal = 16.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.primary)
-        if (error != null) Text(error!!, Modifier.padding(horizontal = 16.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.error)
-        if (usingOfflineCache) AssistChip(onClick = { refreshData() }, label = { Icon(Icons.Default.CloudOff, null); Spacer(Modifier.width(5.dp)); Text("Cached offline data • Retry cloud") })
+        if (notice != null) AppText(notice!!, Modifier.padding(horizontal = 16.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.primary)
+        if (error != null) AppText(error!!, Modifier.padding(horizontal = 16.dp, vertical = 5.dp), color = MaterialTheme.colorScheme.error)
+        if (usingOfflineCache) AssistChip(onClick = { refreshData() }, label = { Icon(Icons.Default.CloudOff, null); Spacer(Modifier.width(5.dp)); AppText("Cached offline data • Retry cloud") })
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
 
         when (activeTab) {
@@ -721,10 +721,10 @@ internal fun GameLabScreen(
                     item {
                         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Browse games, then open each test", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text("Games now appear as square cover cards. Open a game to explore community test results, driver comparisons, exact settings and evidence. Unknown games stay “Not tested”; compatibility is never invented.")
+                                AppText("Browse games, then open each test", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                AppText("Games now appear as square cover cards. Open a game to explore community test results, driver comparisons, exact settings and evidence. Unknown games stay “Not tested”; compatibility is never invented.")
                                 Button(onClick = onOpenGameLibrary, modifier = Modifier.fillMaxWidth()) {
-                                    Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("OPEN GAME COMPATIBILITY FINDER")
+                                    Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); AppText("OPEN GAME COMPATIBILITY FINDER")
                                 }
                             }
                         }
@@ -737,31 +737,31 @@ internal fun GameLabScreen(
                         }
                     }
                     item {
-                        Text("Quick tools", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("• Save known-good versions in Configs. • Monitor games in Watchlist. • Analyze logs locally. • Share a diagnostic package only after review.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppText("Quick tools", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        AppText("• Save known-good versions in Configs. • Monitor games in Watchlist. • Analyze logs locally. • Share a diagnostic package only after review.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     item {
-                        Text("Tests by Mali GPU", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        AppText("Tests by Mali GPU", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         gameLabGpuChoices.filter { it != "Any GPU" }.forEach { gpu ->
                             val count = reports.count { it.gpuFamily == gpu }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(gpu, Modifier.width(105.dp))
+                                AppText(gpu, Modifier.width(105.dp))
                                 LinearProgressIndicator(
                                     progress = { if (reports.isEmpty()) 0f else count.toFloat() / reports.size.toFloat() },
                                     modifier = Modifier.weight(1f).height(8.dp)
                                 )
-                                Text("  $count", style = MaterialTheme.typography.labelMedium)
+                                AppText("  $count", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
                     item {
                         OutlinedButton(onClick = { exportPdf() }, modifier = Modifier.fillMaxWidth(), enabled = reports.isNotEmpty()) {
-                            Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(8.dp)); Text("EXPORT COMMUNITY REPORTS AS PDF")
+                            Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(8.dp)); AppText("EXPORT COMMUNITY REPORTS AS PDF")
                         }
                     }
                     item {
                         OutlinedButton(onClick = { createDiagnosticPackage() }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp)); Text("CREATE ONE-CLICK DIAGNOSTIC PACKAGE")
+                            Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp)); AppText("CREATE ONE-CLICK DIAGNOSTIC PACKAGE")
                         }
                     }
                 }
@@ -769,37 +769,37 @@ internal fun GameLabScreen(
 
             "Watchlist" -> {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
-                    item { Text("Get an in-app alert when a new matching test is submitted.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    item { OutlinedTextField(watchGame, { watchGame = it }, label = { Text("Game name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { Text("GPU"); ChoiceChips(gameLabGpuChoices, watchGpu) { watchGpu = it } }
-                    item { Text("Driver"); ChoiceChips(gameLabDriverChoices, watchDriver) { watchDriver = it } }
-                    item { Button(onClick = { addWatch() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) { Icon(Icons.Default.NotificationsActive, null); Spacer(Modifier.width(7.dp)); Text("ADD TO WATCHLIST") } }
-                    item { Text("WATCHED GAMES", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { AppText("Get an in-app alert when a new matching test is submitted.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item { OutlinedTextField(watchGame, { watchGame = it }, label = { AppText("Game name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { AppText("GPU"); ChoiceChips(gameLabGpuChoices, watchGpu) { watchGpu = it } }
+                    item { AppText("Driver"); ChoiceChips(gameLabDriverChoices, watchDriver) { watchDriver = it } }
+                    item { Button(onClick = { addWatch() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) { Icon(Icons.Default.NotificationsActive, null); Spacer(Modifier.width(7.dp)); AppText("ADD TO WATCHLIST") } }
+                    item { AppText("WATCHED GAMES", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     if (watchlist.isEmpty()) item { EmptyState("No watched games yet. Add a title above to start monitoring.") }
                     items(watchlist, key = { it.id }) { item ->
                         Card(Modifier.fillMaxWidth()) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(item.gameName, fontWeight = FontWeight.Bold)
-                                    Text("${item.gpuFamily} • ${item.driverType}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    AppText(item.gameName, fontWeight = FontWeight.Bold)
+                                    AppText("${item.gpuFamily} • ${item.driverType}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 IconButton(onClick = { deleteWatch(item) }) { Icon(Icons.Default.DeleteOutline, contentDescription = "Remove") }
                             }
                         }
                     }
-                    item { Text("NEW TEST ALERTS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { AppText("NEW TEST ALERTS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     val unread = watchNotifications.count { it.readAt == null }
-                    item { Text("$unread unread alert(s)", color = MaterialTheme.colorScheme.primary) }
+                    item { AppText("$unread unread alert(s)", color = MaterialTheme.colorScheme.primary) }
                     if (watchNotifications.isEmpty()) item { EmptyState("New tests matching a watchlist item will appear here after the SQL migration is installed.") }
                     items(watchNotifications, key = { it.id }) { notification ->
                         Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (notification.readAt == null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(notification.gameName, fontWeight = FontWeight.Bold)
-                                Text(notification.message)
+                                AppText(notification.gameName, fontWeight = FontWeight.Bold)
+                                AppText(notification.message)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(notification.createdAt.orEmpty().take(10), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
-                                    if (notification.readAt == null) TextButton(onClick = { markWatchNotificationRead(notification) }) { Text("MARK READ") }
-                                    TextButton(onClick = onOpenGameLibrary) { Text("OPEN FINDER") }
+                                    AppText(notification.createdAt.orEmpty().take(10), style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
+                                    if (notification.readAt == null) TextButton(onClick = { markWatchNotificationRead(notification) }) { AppText("MARK READ") }
+                                    TextButton(onClick = onOpenGameLibrary) { AppText("OPEN FINDER") }
                                 }
                             }
                         }
@@ -809,53 +809,53 @@ internal fun GameLabScreen(
 
             "Configs" -> {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
-                    item { Text("Store known-good configurations with the exact driver and translation-layer versions. Public sharing is optional.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    item { Text("CONFIGURATION DETAILS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                    item { OutlinedTextField(configName, { configName = it }, label = { Text("Configuration name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configGame, { configGame = it }, label = { Text("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { Text("GPU"); ChoiceChips(gameLabGpuChoices.filter { it != "Any GPU" }, configGpu) { configGpu = it } }
-                    item { Text("Driver"); ChoiceChips(gameLabDriverChoices.filter { it != "Any" }, configDriver) { configDriver = it } }
-                    item { OutlinedTextField(configDriverVersion, { configDriverVersion = it }, label = { Text("Driver build / version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configDevice, { configDevice = it }, label = { Text("Device model") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configSoc, { configSoc = it }, label = { Text("SoC") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configEmulator, { configEmulator = it }, label = { Text("Winlator / GameHub / other") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configEmulatorVersion, { configEmulatorVersion = it }, label = { Text("Emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configWine, { configWine = it }, label = { Text("Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configDxvk, { configDxvk = it }, label = { Text("DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configVkd3d, { configVkd3d = it }, label = { Text("VKD3D-Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configBox64, { configBox64 = it }, label = { Text("Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configResolution, { configResolution = it }, label = { Text("Resolution") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configPreset, { configPreset = it }, label = { Text("Graphics preset") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(configNotes, { configNotes = it }, label = { Text("Notes / required tweaks") }, modifier = Modifier.fillMaxWidth(), minLines = 2) }
+                    item { AppText("Store known-good configurations with the exact driver and translation-layer versions. Public sharing is optional.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item { AppText("CONFIGURATION DETAILS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { OutlinedTextField(configName, { configName = it }, label = { AppText("Configuration name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configGame, { configGame = it }, label = { AppText("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { AppText("GPU"); ChoiceChips(gameLabGpuChoices.filter { it != "Any GPU" }, configGpu) { configGpu = it } }
+                    item { AppText("Driver"); ChoiceChips(gameLabDriverChoices.filter { it != "Any" }, configDriver) { configDriver = it } }
+                    item { OutlinedTextField(configDriverVersion, { configDriverVersion = it }, label = { AppText("Driver build / version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configDevice, { configDevice = it }, label = { AppText("Device model") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configSoc, { configSoc = it }, label = { AppText("SoC") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configEmulator, { configEmulator = it }, label = { AppText("Winlator / GameHub / other") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configEmulatorVersion, { configEmulatorVersion = it }, label = { AppText("Emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configWine, { configWine = it }, label = { AppText("Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configDxvk, { configDxvk = it }, label = { AppText("DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configVkd3d, { configVkd3d = it }, label = { AppText("VKD3D-Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configBox64, { configBox64 = it }, label = { AppText("Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configResolution, { configResolution = it }, label = { AppText("Resolution") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configPreset, { configPreset = it }, label = { AppText("Graphics preset") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(configNotes, { configNotes = it }, label = { AppText("Notes / required tweaks") }, modifier = Modifier.fillMaxWidth(), minLines = 2) }
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Share in community", fontWeight = FontWeight.SemiBold)
-                                Text("Public configs can be seen by signed-in users.", style = MaterialTheme.typography.bodySmall)
+                                AppText("Share in community", fontWeight = FontWeight.SemiBold)
+                                AppText("Public configs can be seen by signed-in users.", style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(checked = configPublic, onCheckedChange = { configPublic = it })
                         }
                     }
-                    item { Button(onClick = { saveConfig() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(8.dp)); Text("SAVE CONFIGURATION") } }
-                    item { HorizontalDivider(); Text("SAVED CONFIGURATIONS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { Button(onClick = { saveConfig() }, modifier = Modifier.fillMaxWidth(), enabled = !loading) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(8.dp)); AppText("SAVE CONFIGURATION") } }
+                    item { HorizontalDivider(); AppText("SAVED CONFIGURATIONS", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     if (savedConfigs.isEmpty()) item { EmptyState("Your saved configurations will appear here.") }
                     items(savedConfigs, key = { it.id }) { config ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(config.configName, Modifier.weight(1f), fontWeight = FontWeight.Bold)
-                                    if (config.isPublic) AssistChip(onClick = {}, label = { Text("PUBLIC") })
+                                    AppText(config.configName, Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                                    if (config.isPublic) AssistChip(onClick = {}, label = { AppText("PUBLIC") })
                                 }
-                                Text("${config.gameName} • ${config.gpuFamily} • ${config.driverType}")
-                                Text("${config.emulatorName} ${config.emulatorVersion.orEmpty()} • Wine ${config.wineVersion ?: "—"} • DXVK ${config.dxvkVersion ?: "—"}")
-                                Text("VKD3D ${config.vkd3dVersion ?: "—"} • Box64 ${config.box64Version ?: "—"} • ${config.resolution ?: "Resolution not set"}", style = MaterialTheme.typography.bodySmall)
-                                if (!config.notes.isNullOrBlank()) Text(config.notes, style = MaterialTheme.typography.bodySmall)
+                                AppText("${config.gameName} • ${config.gpuFamily} • ${config.driverType}")
+                                AppText("${config.emulatorName} ${config.emulatorVersion.orEmpty()} • Wine ${config.wineVersion ?: "—"} • DXVK ${config.dxvkVersion ?: "—"}")
+                                AppText("VKD3D ${config.vkd3dVersion ?: "—"} • Box64 ${config.box64Version ?: "—"} • ${config.resolution ?: "Resolution not set"}", style = MaterialTheme.typography.bodySmall)
+                                if (!config.notes.isNullOrBlank()) AppText(config.notes, style = MaterialTheme.typography.bodySmall)
                                 Row {
-                                    TextButton(onClick = { shareConfig(config, context) }) { Icon(Icons.Default.Share, null); Spacer(Modifier.width(4.dp)); Text("SHARE") }
+                                    TextButton(onClick = { shareConfig(config, context) }) { Icon(Icons.Default.Share, null); Spacer(Modifier.width(4.dp)); AppText("SHARE") }
                                     if (config.userId == userId) {
-                                        TextButton(onClick = { deleteConfig(config) }) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(4.dp)); Text("DELETE") }
+                                        TextButton(onClick = { deleteConfig(config) }) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(4.dp)); AppText("DELETE") }
                                     } else {
-                                        AssistChip(onClick = {}, label = { Icon(Icons.Default.People, null); Spacer(Modifier.width(4.dp)); Text("COMMUNITY") })
+                                        AssistChip(onClick = {}, label = { Icon(Icons.Default.People, null); Spacer(Modifier.width(4.dp)); AppText("COMMUNITY") })
                                     }
                                 }
                             }
@@ -866,9 +866,9 @@ internal fun GameLabScreen(
 
             "Troubleshoot" -> {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Smart Troubleshooter & Report Wizard", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Choose the symptom; the app gives a safe checklist and can prefill a complete issue report. It won't claim the driver is the cause without evidence.")
-                    OutlinedTextField(troubleGame, { troubleGame = it }, label = { Text("Game name (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    AppText("Smart Troubleshooter & Report Wizard", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("Choose the symptom; the app gives a safe checklist and can prefill a complete issue report. It won't claim the driver is the cause without evidence.")
+                    OutlinedTextField(troubleGame, { troubleGame = it }, label = { AppText("Game name (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     listOf(
                         "Black textures / missing graphics",
                         "Black screen",
@@ -885,16 +885,16 @@ internal fun GameLabScreen(
                         ) {
                             Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(selected = troubleType == option, onClick = { troubleType = option; troubleStep = 0 })
-                                Text(option, Modifier.weight(1f))
+                                AppText(option, Modifier.weight(1f))
                             }
                         }
                     }
-                    Text("Suggested checks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("Suggested checks", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     val checks = troubleshootingSteps(troubleType)
                     checks.forEachIndexed { i, check ->
                         Row(verticalAlignment = Alignment.Top) {
                             Checkbox(checked = i < troubleStep, onCheckedChange = { checked -> troubleStep = if (checked) maxOf(troubleStep, i + 1) else minOf(troubleStep, i) })
-                            Text(check, Modifier.weight(1f).padding(top = 12.dp))
+                            AppText(check, Modifier.weight(1f).padding(top = 12.dp))
                         }
                     }
                     OutlinedButton(onClick = {
@@ -916,60 +916,60 @@ internal fun GameLabScreen(
                             else -> "Crash"
                         }, desc)
                     }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Assignment, null); Spacer(Modifier.width(8.dp)); Text("CREATE PREFILLED ISSUE")
+                        Icon(Icons.Default.Assignment, null); Spacer(Modifier.width(8.dp)); AppText("CREATE PREFILLED ISSUE")
                     }
                     OutlinedButton(onClick = { createDiagnosticPackage() }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp)); Text("BUILD DIAGNOSTIC PACKAGE")
+                        Icon(Icons.Default.Inventory2, null); Spacer(Modifier.width(8.dp)); AppText("BUILD DIAGNOSTIC PACKAGE")
                     }
                 }
             }
 
             "Logs" -> {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Diagnostic Log Analyzer", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Select a text log. Analysis runs locally, highlights common signatures and suggests what to attach to a report. This is triage, not a definitive diagnosis.")
+                    AppText("Diagnostic Log Analyzer", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("Select a text log. Analysis runs locally, highlights common signatures and suggests what to attach to a report. This is triage, not a definitive diagnosis.")
                     Button(onClick = { pickLog.launch(arrayOf("text/*", "application/octet-stream", "application/log")) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(8.dp)); Text("SELECT LOG FILE")
+                        Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(8.dp)); AppText("SELECT LOG FILE")
                     }
-                    if (logFilename != null) Text("Selected: $logFilename", color = MaterialTheme.colorScheme.primary)
+                    if (logFilename != null) AppText("Selected: $logFilename", color = MaterialTheme.colorScheme.primary)
                     if (logCategoryCounts.isNotEmpty()) {
-                        Text("Signatures found", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        AppText("Signatures found", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         logCategoryCounts.forEach { (category, count) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(category, Modifier.weight(1f))
-                                AssistChip(onClick = {}, label = { Text(count.toString()) })
+                                AppText(category, Modifier.weight(1f))
+                                AssistChip(onClick = {}, label = { AppText(count.toString()) })
                             }
                         }
                     }
                     if (logAnalysis != null) {
                         OutlinedButton(onClick = { shareText(context, "GMailGPU Log Analysis", logAnalysis!!) }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.Share, null); Spacer(Modifier.width(7.dp)); Text("SHARE ANALYSIS")
+                            Icon(Icons.Default.Share, null); Spacer(Modifier.width(7.dp)); AppText("SHARE ANALYSIS")
                         }
                         OutlinedButton(onClick = { copyText(context, logAnalysis!!) }, modifier = Modifier.fillMaxWidth()) {
-                            Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(7.dp)); Text("COPY ANALYSIS")
+                            Icon(Icons.Default.ContentCopy, null); Spacer(Modifier.width(7.dp)); AppText("COPY ANALYSIS")
                         }
-                        Card(Modifier.fillMaxWidth()) { Text(logAnalysis!!, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
+                        Card(Modifier.fillMaxWidth()) { AppText(logAnalysis!!, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
                     } else EmptyState("No log analyzed yet. Your selected file is not uploaded automatically.")
-                    Text("Privacy: the analyzer redacts common emails and credential-like values, but review the output before sharing.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppText("Privacy: the analyzer redacts common emails and credential-like values, but review the output before sharing.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             "Profile & Stats" -> {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
-                    item { Text("Tester profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                    item { OutlinedTextField(profileName, { profileName = it }, label = { Text("Display name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
-                    item { OutlinedTextField(profileBio, { profileBio = it.take(500) }, label = { Text("Short bio (max 500 chars)") }, modifier = Modifier.fillMaxWidth(), minLines = 3) }
+                    item { AppText("Tester profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { OutlinedTextField(profileName, { profileName = it }, label = { AppText("Display name") }, modifier = Modifier.fillMaxWidth(), singleLine = true) }
+                    item { OutlinedTextField(profileBio, { profileBio = it.take(500) }, label = { AppText("Short bio (max 500 chars)") }, modifier = Modifier.fillMaxWidth(), minLines = 3) }
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
-                                Text("Make my profile public", fontWeight = FontWeight.SemiBold)
-                                Text("Off = only you can see the profile. Test counts below are based on accessible database results.", style = MaterialTheme.typography.bodySmall)
+                                AppText("Make my profile public", fontWeight = FontWeight.SemiBold)
+                                AppText("Off = only you can see the profile. Test counts below are based on accessible database results.", style = MaterialTheme.typography.bodySmall)
                             }
                             Switch(checked = profilePublic, onCheckedChange = { profilePublic = it })
                         }
                     }
-                    item { Button(onClick = { saveTesterProfile() }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); Text("SAVE TESTER PROFILE") } }
-                    item { HorizontalDivider(); Text("Community statistics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                    item { Button(onClick = { saveTesterProfile() }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Person, null); Spacer(Modifier.width(8.dp)); AppText("SAVE TESTER PROFILE") } }
+                    item { HorizontalDivider(); AppText("Community statistics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                     item {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                             MetricCard("TESTS", reports.size.toString(), Modifier.weight(1f))
@@ -981,10 +981,10 @@ internal fun GameLabScreen(
                         val mine = reports.filter { it.userId == userId }
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(profileName.ifBlank { username }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(profileBio.ifBlank { "No bio added." })
-                                Text("Your accessible submissions: ${mine.size}")
-                                Text("Verified submissions: ${mine.count { it.reviewStatus == "verified" }}")
+                                AppText(profileName.ifBlank { username }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                AppText(profileBio.ifBlank { "No bio added." })
+                                AppText("Your accessible submissions: ${mine.size}")
+                                AppText("Verified submissions: ${mine.count { it.reviewStatus == "verified" }}")
                                 val score = mine.count { it.evidencePaths.isNotEmpty() } + mine.count { it.reviewStatus == "verified" } * 2
                                 val reward = when {
                                     mine.count { it.reviewStatus == "verified" } >= 10 -> "Gold Verified Tester"
@@ -993,44 +993,44 @@ internal fun GameLabScreen(
                                     mine.isNotEmpty() -> "Community Tester"
                                     else -> "New Tester"
                                 }
-                                AssistChip(onClick = {}, label = { Icon(Icons.Default.EmojiEvents, null); Spacer(Modifier.width(5.dp)); Text(reward) })
-                                Text("Badges reflect recorded contributions and reviewed results, not FPS ranking.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                AssistChip(onClick = {}, label = { Icon(Icons.Default.EmojiEvents, null); Spacer(Modifier.width(5.dp)); AppText(reward) })
+                                AppText("Badges reflect recorded contributions and reviewed results, not FPS ranking.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
-                    item { HorizontalDivider(); Text("Community tester highlights", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
-                    if (publicTesters.isEmpty()) item { Text("No public tester profiles yet. Users opt in from Profile & Stats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    item { HorizontalDivider(); AppText("Community tester highlights", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                    if (publicTesters.isEmpty()) item { AppText("No public tester profiles yet. Users opt in from Profile & Stats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     items(publicTesters, key = { it.userId }) { tester ->
                         val testerRuns = reports.filter { it.userId == tester.userId }
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(tester.displayName, fontWeight = FontWeight.Bold)
-                                if (tester.bio.isNotBlank()) Text(tester.bio)
-                                Text("${testerRuns.size} visible test(s) • ${testerRuns.count { it.reviewStatus == "verified" }} verified", style = MaterialTheme.typography.bodySmall)
+                                AppText(tester.displayName, fontWeight = FontWeight.Bold)
+                                if (tester.bio.isNotBlank()) AppText(tester.bio)
+                                AppText("${testerRuns.size} visible test(s) • ${testerRuns.count { it.reviewStatus == "verified" }} verified", style = MaterialTheme.typography.bodySmall)
                                 val badge = when {
                                     testerRuns.count { it.reviewStatus == "verified" } >= 10 -> "Gold Verified Tester"
                                     testerRuns.count { it.reviewStatus == "verified" } >= 3 -> "Verified Tester"
                                     testerRuns.isNotEmpty() -> "Community Tester"
                                     else -> "New Tester"
                                 }
-                                AssistChip(onClick = {}, label = { Text(badge) })
+                                AssistChip(onClick = {}, label = { AppText(badge) })
                             }
                         }
                     }
-                    item { Text("Test coverage by GPU", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                    item { AppText("Test coverage by GPU", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
                     items(gameLabGpuChoices.filter { it != "Any GPU" }) { gpu ->
                         val count = reports.count { it.gpuFamily == gpu }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(gpu, Modifier.width(100.dp))
+                            AppText(gpu, Modifier.width(100.dp))
                             LinearProgressIndicator(
                                 progress = { if (reports.isEmpty()) 0f else count.toFloat()/reports.size.toFloat() },
                                 modifier = Modifier.weight(1f).height(8.dp)
                             )
-                            Text("  $count")
+                            AppText("  $count")
                         }
                     }
-                    item { Button(onClick = { exportPdf() }, modifier = Modifier.fillMaxWidth(), enabled = reports.isNotEmpty()) { Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(7.dp)); Text("EXPORT STATS & TESTS TO PDF") } }
-                    item { OutlinedButton(onClick = { shareText(context, "GMailGPU Community Stats", "Game reports: ${reports.size}\nGames: ${reports.map { it.gameName.lowercase() }.distinct().size}\nVerified: ${reports.count { it.reviewStatus == "verified" }}\nLatest cache can be used offline.") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, null); Spacer(Modifier.width(7.dp)); Text("SHARE SUMMARY") } }
+                    item { Button(onClick = { exportPdf() }, modifier = Modifier.fillMaxWidth(), enabled = reports.isNotEmpty()) { Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(7.dp)); AppText("EXPORT STATS & TESTS TO PDF") } }
+                    item { OutlinedButton(onClick = { shareText(context, "GMailGPU Community Stats", "Game reports: ${reports.size}\nGames: ${reports.map { it.gameName.lowercase() }.distinct().size}\nVerified: ${reports.count { it.reviewStatus == "verified" }}\nLatest cache can be used offline.") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Share, null); Spacer(Modifier.width(7.dp)); AppText("SHARE SUMMARY") } }
                 }
             }
 
@@ -1040,44 +1040,44 @@ internal fun GameLabScreen(
                 } else {
                     val queue = reports.filter { it.reviewStatus == "community" }
                     LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
-                        item { Text("Review queue • ${queue.size} community report(s)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
-                        item { Text("Review the image/video evidence and test details before marking a result Verified. Verification is not a promise of compatibility on every device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        item { AppText("Review queue • ${queue.size} community report(s)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                        item { AppText("Review the image/video evidence and test details before marking a result Verified. Verification is not a promise of compatibility on every device.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (queue.isEmpty()) item { EmptyState("No community reports are waiting for review.") }
                         items(queue, key = { it.id }) { report ->
                             Card(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(report.gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                    Text("${report.gpuFamily} • ${report.driverType} ${report.driverVersion.orEmpty()} • ${report.emulatorName}")
-                                    Text("FPS: avg ${report.averageFps ?: "—"} • min ${report.minimumFps ?: "—"} • duration ${report.testDurationSeconds?.let { "$it s" } ?: "—"}")
-                                    Text("Evidence: ${report.evidencePaths.size} file(s) • ${if (report.evidenceReviewed) "Evidence reviewed" else "Not reviewed"}")
-                                    Text(report.notes)
+                                    AppText(report.gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    AppText("${report.gpuFamily} • ${report.driverType} ${report.driverVersion.orEmpty()} • ${report.emulatorName}")
+                                    AppText("FPS: avg ${report.averageFps ?: "—"} • min ${report.minimumFps ?: "—"} • duration ${report.testDurationSeconds?.let { "$it s" } ?: "—"}")
+                                    AppText("Evidence: ${report.evidencePaths.size} file(s) • ${if (report.evidenceReviewed) "Evidence reviewed" else "Not reviewed"}")
+                                    AppText(report.notes)
                                     report.evidencePaths.forEachIndexed { i, path ->
-                                        TextButton(onClick = { openPrivateEvidence(context, scope, client, path) { error = it } }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); Text("Open evidence ${i+1}") }
+                                        TextButton(onClick = { openPrivateEvidence(context, scope, client, path) { error = it } }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(4.dp)); AppText("Open evidence ${i+1}") }
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        OutlinedButton(onClick = { reviewReport(report, "reviewed") }, modifier = Modifier.weight(1f)) { Text("EVIDENCE REVIEWED") }
-                                        Button(onClick = { reviewReport(report, "verified") }, modifier = Modifier.weight(1f)) { Text("VERIFY") }
+                                        OutlinedButton(onClick = { reviewReport(report, "reviewed") }, modifier = Modifier.weight(1f)) { AppText("EVIDENCE REVIEWED") }
+                                        Button(onClick = { reviewReport(report, "verified") }, modifier = Modifier.weight(1f)) { AppText("VERIFY") }
                                     }
-                                    OutlinedButton(onClick = { reviewReport(report, "rejected") }, modifier = Modifier.fillMaxWidth()) { Text("REJECT REPORT") }
+                                    OutlinedButton(onClick = { reviewReport(report, "rejected") }, modifier = Modifier.fillMaxWidth()) { AppText("REJECT REPORT") }
                                 }
                             }
                         }
-                        item { HorizontalDivider(); Text("Moderation flags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                        item { HorizontalDivider(); AppText("Moderation flags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
                         val openFlags = reportFlags.filter { it.status == "open" || it.status == "reviewing" }
-                        item { Text("${openFlags.size} open flag(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        item { AppText("${openFlags.size} open flag(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                         if (openFlags.isEmpty()) item { EmptyState("No open moderation flags.") }
                         items(openFlags, key = { "flag-${it.id}" }) { flag ->
                             val flaggedReport = reports.firstOrNull { it.id == flag.reportId }
                             Card(Modifier.fillMaxWidth()) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    Text(flaggedReport?.gameName ?: "Removed / unavailable report", fontWeight = FontWeight.Bold)
-                                    Text("Reason: ${flag.reason} • ${flag.createdAt.orEmpty().take(10)}")
-                                    if (flag.details.isNotBlank()) Text(flag.details)
+                                    AppText(flaggedReport?.gameName ?: "Removed / unavailable report", fontWeight = FontWeight.Bold)
+                                    AppText("Reason: ${flag.reason} • ${flag.createdAt.orEmpty().take(10)}")
+                                    if (flag.details.isNotBlank()) AppText(flag.details)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(onClick = { moderateFlag(flag, "reviewing") }, modifier = Modifier.weight(1f)) { Text("REVIEWING") }
-                                        Button(onClick = { moderateFlag(flag, "resolved") }, modifier = Modifier.weight(1f)) { Text("RESOLVE") }
+                                        OutlinedButton(onClick = { moderateFlag(flag, "reviewing") }, modifier = Modifier.weight(1f)) { AppText("REVIEWING") }
+                                        Button(onClick = { moderateFlag(flag, "resolved") }, modifier = Modifier.weight(1f)) { AppText("RESOLVE") }
                                     }
-                                    TextButton(onClick = { moderateFlag(flag, "dismissed") }, modifier = Modifier.align(Alignment.End)) { Text("DISMISS FLAG") }
+                                    TextButton(onClick = { moderateFlag(flag, "dismissed") }, modifier = Modifier.align(Alignment.End)) { AppText("DISMISS FLAG") }
                                 }
                             }
                         }
@@ -1088,20 +1088,20 @@ internal fun GameLabScreen(
             "Driver Updates" -> {
                 LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(start = 0.dp, top = 14.dp, end = 0.dp, bottom = 30.dp)) {
                     item {
-                        Text("Driver Update Tracker", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Text("Checks GitHub's latest published Release API. Repositories without a GitHub Release are marked accordingly; development commits and custom builds may exist outside Releases.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        AppText("Driver Update Tracker", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        AppText("Checks GitHub's latest published Release API. Repositories without a GitHub Release are marked accordingly; development commits and custom builds may exist outside Releases.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    item { Button(onClick = { fetchDriverReleases() }, enabled = !loadingReleases, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Sync, null); Spacer(Modifier.width(8.dp)); Text(if (loadingReleases) "CHECKING GITHUB…" else "CHECK RELEASES") } }
+                    item { Button(onClick = { fetchDriverReleases() }, enabled = !loadingReleases, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Sync, null); Spacer(Modifier.width(8.dp)); AppText(if (loadingReleases) "CHECKING GITHUB…" else "CHECK RELEASES") } }
                     if (loadingReleases) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     if (latestReleases.isEmpty()) item { EmptyState("Tap Check Releases to query the driver repositories.") }
                     items(latestReleases, key = { it.repository }) { release ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(release.repository, fontWeight = FontWeight.Bold)
-                                Text(release.latestVersion, color = MaterialTheme.colorScheme.primary)
-                                if (release.publishedAt.isNotBlank()) Text("Published: ${release.publishedAt.take(10)}", style = MaterialTheme.typography.bodySmall)
-                                Text(release.status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.url))) }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(5.dp)); Text("OPEN SOURCE / RELEASES") }
+                                AppText(release.repository, fontWeight = FontWeight.Bold)
+                                AppText(release.latestVersion, color = MaterialTheme.colorScheme.primary)
+                                if (release.publishedAt.isNotBlank()) AppText("Published: ${release.publishedAt.take(10)}", style = MaterialTheme.typography.bodySmall)
+                                AppText(release.status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.url))) }) { Icon(Icons.Default.OpenInNew, null); Spacer(Modifier.width(5.dp)); AppText("OPEN SOURCE / RELEASES") }
                             }
                         }
                     }
@@ -1117,8 +1117,8 @@ internal fun GameLabScreen(
 private fun MetricCard(label: String, value: String, modifier: Modifier = Modifier) {
     Card(modifier = modifier) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            AppText(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            AppText(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -1129,7 +1129,7 @@ private fun EmptyState(message: String) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Info, contentDescription = null)
             Spacer(Modifier.width(10.dp))
-            Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+            AppText(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -1143,7 +1143,7 @@ private fun ChoiceChips(options: List<String>, selected: String, onSelect: (Stri
                     FilterChip(
                         selected = selected == option,
                         onClick = { onSelect(option) },
-                        label = { Text(option, maxLines = 1) }
+                        label = { AppText(option, maxLines = 1) }
                     )
                 }
             }
