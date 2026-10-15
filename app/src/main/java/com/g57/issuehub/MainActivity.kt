@@ -30,6 +30,7 @@ import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -86,7 +87,7 @@ internal fun AppText(
     MaterialText(
         text = translated.value,
         modifier = modifier,
-        color = color,
+        color = if (color == Color.Unspecified) G57Text else color,
         fontWeight = fontWeight,
         textAlign = textAlign,
         maxLines = maxLines,
@@ -854,6 +855,21 @@ private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
                 Checkbox(checked = ui.redactSensitiveLogs, onCheckedChange = vm::setRedactSensitiveLogs)
             }
             AppText("Review every report or log file before uploading. Redaction is best-effort and may not catch every secret.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            Divider(color = G57Border)
+            AppText("FEEDBACK & BUG REPORTS", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText(
+                "Have a feature suggestion or found an app bug? Open a new GitHub issue and describe the steps to reproduce it. Remove passwords, tokens, and private information from logs first.",
+                color = G57Muted,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Button(
+                onClick = { vm.openExternalUrl("https://github.com/SOLO-XP/GMailGPU/issues/new/choose") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.BugReport, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                AppText("SUGGEST A FEATURE / REPORT A BUG")
+            }
             OutlinedButton(onClick = { vm.logout() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Logout, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -913,6 +929,61 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppText("✨ WHICH DRIVER SHOULD I TRY FIRST?", color = G57Cyan, fontWeight = FontWeight.Bold)
+                    AppText(
+                        "Compare the two options for your GPU. These are recommendations only; select the actual driver inside Winlator/GameHub.",
+                        color = G57Muted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    listOf("G57", "G52", "G615", "G720").forEach { gpu ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = G57Card),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                AppText("Mali-$gpu", color = G57Primary, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        color = Color(0xFF14392D),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2D815D))
+                                    ) {
+                                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                            AppText("SYSTEM DRIVER", color = Color(0xFF80E7B4), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
+                                            AppText("Start here", color = G57Text, fontWeight = FontWeight.Bold)
+                                            AppText("Best first baseline for everyday compatibility and FPS. Actual results depend on the game and device.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        color = Color(0xFF20213E),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF5557A6))
+                                    ) {
+                                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                            AppText("PANVK", color = Color(0xFFB8B5FF), fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.labelMedium)
+                                            AppText("Experimental", color = G57Text, fontWeight = FontWeight.Bold)
+                                            AppText("Try for black textures or rendering fixes. FPS may be lower, and bugs or unsupported features are possible.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    AppText(
+                        "⚠️ PanVK support and stability vary by GPU, device, Android build, and driver version. A listed option is not a guarantee of compatibility or better performance.",
+                        color = G57Muted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Divider(color = G57Border)
+                    AppText("COMMUNITY DRIVER REPOSITORIES", color = G57Cyan, fontWeight = FontWeight.Bold)
+                }
+            }
             items(repositories) { (gpu, name, url) ->
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -1167,6 +1238,9 @@ private fun StatusBadge(status: String) {
 private fun CreateIssueScreen(ui: UiState, vm: G57ViewModel) {
     val scroll = rememberScrollState()
     val context = LocalContext.current
+    LaunchedEffect(issue.id, admin) {
+        if (admin) vm.markIssueViewedByAdmin(issue.id)
+    }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.addFiles(readPickedFiles(uris, "image", context))
     }
@@ -1320,7 +1394,10 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 AppText(if (admin) "DELETE ISSUE (ADMIN)" else "DELETE MY ISSUE")
             }
             AppText(issue.description)
-            if (admin) Detail("User", issue.userUsername ?: issue.userId ?: "Unknown")
+            if (admin) {
+                Detail("User", issue.userUsername ?: issue.userId ?: "Unknown")
+                issue.lastAdminViewedAt?.let { Detail("Last developer review", it.replace("T", " ").take(16)) }
+            }
             Detail("Game", "${issue.game} ${issue.gameVersion.orEmpty()}")
             Detail("Problem", issue.problemType)
             Detail("Driver", issue.driver)
@@ -1467,12 +1544,41 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 AppText("Setting status to Fixed/Closed creates an in-app notification for the user and adds them to Solved Users.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
             }
 
+            if (!admin && issue.status == "closed") {
+                Surface(
+                    color = G57Card,
+                    shape = RoundedCornerShape(14.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppText("CLOSURE NOTE", color = G57Cyan, fontWeight = FontWeight.Bold)
+                        AppText(
+                            issue.developerNote ?: "This issue is closed. Contact the developer through issue chat if you still need help.",
+                            color = G57Text
+                        )
+                        Button(
+                            onClick = { vm.reopenOwnIssue(issue.id) },
+                            enabled = !ui.loading,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            AppText("REOPEN ISSUE")
+                        }
+                    }
+                }
+            }
             if (!admin && issue.status in listOf("fixed", "closed")) {
                 Surface(color = Color(0xFF153322), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF63E6BE))
                         Spacer(Modifier.width(10.dp))
-                        AppText("The developer marked this issue as resolved.")
+                        AppText(
+                            if (issue.status == "closed" && issue.developerNote.orEmpty().startsWith("Closed automatically:"))
+                                "This issue was automatically closed after 14 days without a developer review."
+                            else "The developer marked this issue as resolved."
+                        )
                     }
                 }
             }
@@ -1480,17 +1586,25 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
         }
     }
 
-    if (ui.attachmentPreviewText != null) {
+    if (ui.attachmentPreviewText != null || ui.attachmentPreviewBitmap != null) {
         AlertDialog(
             onDismissRequest = vm::closeAttachmentPreview,
-            title = { AppText(ui.attachmentPreviewName ?: "Log preview", fontWeight = FontWeight.Bold) },
+            title = { AppText(ui.attachmentPreviewName ?: "Attachment preview", fontWeight = FontWeight.Bold, color = G57Text) },
             text = {
-                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                    AppText(
-                        ui.attachmentPreviewText.orEmpty(),
-                        color = G57Text,
-                        style = MaterialTheme.typography.bodySmall
+                if (ui.attachmentPreviewBitmap != null) {
+                    Image(
+                        bitmap = ui.attachmentPreviewBitmap!!.asImageBitmap(),
+                        contentDescription = ui.attachmentPreviewName ?: "Issue image",
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)
                     )
+                } else {
+                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                        AppText(
+                            ui.attachmentPreviewText.orEmpty(),
+                            color = G57Text,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             },
             confirmButton = {
