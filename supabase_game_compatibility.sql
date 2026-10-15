@@ -10,6 +10,7 @@ create table if not exists public.game_compatibility_reports (
   username text not null default 'community member',
   game_name text not null,
   game_version text,
+  game_image_path text,
   gpu_family text not null check (
     gpu_family in ('Mali-G52', 'Mali-G57', 'Mali-G615', 'Mali-G720', 'Other')
   ),
