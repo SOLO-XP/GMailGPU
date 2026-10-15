@@ -10,6 +10,7 @@ alter table public.issue_messages
   add column if not exists delivered_at timestamptz,
   add column if not exists read_at timestamptz;
 
+revoke update on public.issue_messages from authenticated;
 grant update (delivered_at, read_at) on public.issue_messages to authenticated;
 drop policy if exists "issue chat receipt update receiver" on public.issue_messages;
 create policy "issue chat receipt update receiver"
