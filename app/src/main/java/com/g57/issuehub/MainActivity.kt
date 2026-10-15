@@ -268,6 +268,13 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
+                            label = { AppText("Game Compatibility Library") },
+                            selected = ui.screen == ScreenState.GameCompatibility,
+                            icon = { Icon(Icons.Default.SportsEsports, contentDescription = null) },
+                            onClick = { scope.launch { drawerState.close() }; vm.openGameCompatibility() },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
                             label = { AppText("Need Help? • How To Use App") },
                             selected = ui.screen == ScreenState.Help,
                             icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
@@ -311,6 +318,7 @@ fun G57App(vm: G57ViewModel = viewModel()) {
                     ScreenState.AdminSolvedUsers -> AdminSolvedUsers(ui, vm)
                     ScreenState.AdminUserManagement -> AdminUserManagementScreen(ui, vm)
                     ScreenState.DriverDevelopers -> DriverDevelopersScreen(vm)
+                    ScreenState.GameCompatibility -> GameCompatibilityScreen { vm.back() }
                     ScreenState.Help -> HelpScreen(vm)
                     ScreenState.Settings -> SettingsScreen(ui, vm)
                     is ScreenState.AdminIssue -> IssueDetails(screen.issue, ui, vm, admin = true)
