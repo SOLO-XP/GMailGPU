@@ -5,6 +5,12 @@
 </p>
 
 <p align="center">
+  <img alt="Next update coming soon" src="https://img.shields.io/badge/NEXT%20UPDATE-COMING%20SOON-FF9F1C?style=for-the-badge">
+</p>
+
+> 🚧 **COMING SOON — not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, and direct navigation from notifications. The currently listed release remains the last published version until the new APK is ready.
+
+<p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
   <img alt="Version 0.3.3 Beta" src="https://img.shields.io/badge/Version-0.3.3%20Beta-0EA5E9">
@@ -15,6 +21,16 @@
 **GMailGPU** is an Android community app for investigating Mali GPU drivers and gaming compatibility in **Winlator, GameHub, and similar environments**. Create useful bug reports, compare real test results, keep known-good settings, analyze logs, and learn from other testers.
 
 > **Beta notice:** Compatibility results and custom drivers are experimental. A report or verified test is evidence from a particular setup—not a promise that a game or driver will work on every device.
+
+---
+
+## 🚧 Coming soon in the next update
+
+- 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
+- 🟢 Online/offline and last-seen status for the user and developer team.
+- 📲 Optional Android push alerts while the app is in the background, after notification and messaging service setup is complete.
+
+**This update has not been published yet.** The features above are planned for the next beta; availability will be announced after the APK build and required server setup are verified.
 
 ---
 
