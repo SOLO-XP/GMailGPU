@@ -41,11 +41,14 @@ create table if not exists public.issues (
   android_version text,
   device_model text,
   developer_note text,
+  last_admin_viewed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
 alter table public.issues add column if not exists device_model text;
 alter table public.issues add column if not exists developer_note text;
+alter table public.issues add column if not exists last_admin_viewed_at timestamptz;
+create index if not exists issues_last_admin_viewed_at_idx on public.issues (last_admin_viewed_at);
 
 create table if not exists public.attachments (
   id uuid primary key default gen_random_uuid(),
@@ -108,6 +111,40 @@ as $$ select exists(select 1 from public.profiles p where p.id = uid and p.role 
  create policy "issue admin update" on public.issues for update using (public.is_admin()) with check (public.is_admin());
  drop policy if exists "issue own delete" on public.issues;
  create policy "issue own delete" on public.issues for delete using (user_id = auth.uid() or public.is_admin());
+
+-- Owners can reopen closed issues, but may not edit any other issue fields.
+create or replace function public.guard_owner_issue_reopen()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+
+  if auth.uid() is null
+     or old.user_id is distinct from auth.uid()
+     or old.status <> 'closed'
+     or new.status <> 'open'
+     or (to_jsonb(new) - 'status') is distinct from (to_jsonb(old) - 'status') then
+    raise exception 'Users may only reopen their own closed issue.';
+  end if;
+  return new;
+end;
+$;
+
+drop trigger if exists guard_owner_issue_reopen_trigger on public.issues;
+create trigger guard_owner_issue_reopen_trigger
+before update on public.issues
+for each row execute procedure public.guard_owner_issue_reopen();
+
+drop policy if exists "issue owner reopen closed" on public.issues;
+create policy "issue owner reopen closed"
+on public.issues for update
+using (user_id = auth.uid() and status = 'closed')
+with check (user_id = auth.uid() and status = 'open');
 
 -- Attachments: owner/admin read; owner insert; owner/admin delete.
  drop policy if exists "attachment read" on public.attachments;
@@ -185,30 +222,68 @@ after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
 -- Notify the user exactly once when an issue transitions into Fixed/Closed.
+create or replace function public.auto_close_unattended_issues()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  closed_count integer;
+begin
+  update public.issues
+  set status = 'closed',
+      developer_note = 'Closed automatically: No developer was available to investigate your issue within 14 days. Please reopen it if you still need help.'
+  where status in ('open', 'investigating', 'fix_in_progress', 'testing')
+    and coalesce(last_admin_viewed_at, created_at) <= now() - interval '14 days';
+
+  get diagnostics closed_count = row_count;
+  return closed_count;
+end;
+$;
+
 create or replace function public.notify_issue_resolved()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $
 begin
   if (new.status in ('fixed','closed')) and (old.status not in ('fixed','closed')) then
-    insert into public.notifications (user_id, issue_id, title, message)
-    values (
-      new.user_id,
-      new.id,
-      'Issue #' || new.issue_number || ' resolved',
-      'The developer marked your "' || new.title || '" issue as resolved. Open G57 to see the final status and developer note.'
-    );
+    if new.status = 'closed' and new.developer_note like 'Closed automatically:%' then
+      insert into public.notifications (user_id, issue_id, title, message)
+      values (
+        new.user_id,
+        new.id,
+        'Issue #' || new.issue_number || ' closed automatically',
+        new.developer_note || ' Open GMailGPU to reopen it.'
+      );
+    else
+      insert into public.notifications (user_id, issue_id, title, message)
+      values (
+        new.user_id,
+        new.id,
+        'Issue #' || new.issue_number || ' resolved',
+        'The developer marked your "' || new.title || '" issue as resolved. Open GMailGPU to see the final status and developer note.'
+      );
+    end if;
   end if;
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists issue_resolved_notification on public.issues;
 create trigger issue_resolved_notification
 after update of status on public.issues
 for each row execute procedure public.notify_issue_resolved();
+
+-- Supabase Cron must be enabled for scheduled auto-closure.
+create extension if not exists pg_cron with schema pg_catalog;
+select cron.schedule(
+  'gmailgpu-auto-close-unattended-issues',
+  '0 * * * *',
+  'select public.auto_close_unattended_issues();'
+);
 
 -- ADMIN SETUP:
 -- Create the real admin in Supabase Auth using an internal email:
