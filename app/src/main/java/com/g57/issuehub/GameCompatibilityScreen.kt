@@ -35,6 +35,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
+import kotlin.time.Duration.Companion.minutes
 
 @Serializable
 private data class GameCompatibilityReport(
@@ -141,7 +142,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     fun openEvidence(path: String) {
         scope.launch {
             runCatching {
-                client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = kotlin.time.Duration.Companion.minutes(20))
+                client.storage.from("game-evidence").createSignedUrl(path = path, expiresIn = 20.minutes(20))
             }.onSuccess { url ->
                 runCatching { uriHandler.openUri(url) }
                     .onFailure { error = "Couldn't open evidence: ${it.message}" }
