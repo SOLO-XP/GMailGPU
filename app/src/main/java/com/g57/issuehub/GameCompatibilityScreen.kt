@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.g57.issuehub.data.SupabaseProvider
@@ -44,6 +45,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.util.UUID
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.tasks.await
+import java.util.Locale
 
 @Serializable
 private data class GameCompatibilityReport(
@@ -122,6 +125,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     var discussionDraft by remember { mutableStateOf("") }
     var discussionLoading by remember { mutableStateOf(false) }
     var reportToFlag by remember { mutableStateOf<GameCompatibilityReport?>(null) }
+    var deleteReportTarget by remember { mutableStateOf<GameCompatibilityReport?>(null) }
+    var translateReportId by remember { mutableStateOf<String?>(null) }
     var game by remember { mutableStateOf("") }
     var gameVersion by remember { mutableStateOf("") }
     var gpu by remember { mutableStateOf("Mali-G57") }
@@ -282,6 +287,25 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 })
             }.onSuccess { notice = "Report sent to moderators for review." }
              .onFailure { error = "Couldn't flag report. Run the Game Lab SQL migration. Details: ${it.message}" }
+        }
+    }
+
+    fun deleteOwnReport(report: GameCompatibilityReport) {
+        if (report.userId != userId) { error = "You can delete only your own test reports."; return }
+        scope.launch {
+            runCatching {
+                if (report.evidencePaths.isNotEmpty()) {
+                    client.storage.from("game-evidence").delete(*report.evidencePaths.toTypedArray())
+                }
+                client.from("game_compatibility_reports").delete {
+                    filter { eq("id", report.id); eq("user_id", userId) }
+                }
+            }.onSuccess {
+                reports = reports.filterNot { it.id == report.id }
+                deleteReportTarget = null
+                notice = "Your report was deleted. Related discussion and watch alerts are removed by the database."
+                refresh()
+            }.onFailure { error = "Could not delete your report. Run supabase_game_lab_features.sql and check your evidence ownership. Details: ${it.message}" }
         }
     }
 
@@ -567,10 +591,20 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                             report.evidencePaths.forEachIndexed { index, path ->
                                 TextButton(onClick = { openEvidence(path) }) { Icon(if (path.substringBefore('?').lowercase().let { it.endsWith(".mp4") || it.endsWith(".webm") || it.endsWith(".mov") }) Icons.Default.PlayCircle else Icons.Default.Image, null); Spacer(Modifier.width(4.dp)); Text("Preview evidence ${index + 1}") }
                             }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                 TextButton(onClick = { openDiscussion(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Forum, null); Spacer(Modifier.width(3.dp)); Text("DISCUSS") }
                                 TextButton(onClick = { saveConfiguration(report) }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.BookmarkAdd, null); Spacer(Modifier.width(3.dp)); Text("SAVE CONFIG") }
-                                if (report.userId != userId) TextButton(onClick = { reportToFlag = report }) { Icon(Icons.Default.Flag, null); Text("FLAG") }
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                TextButton(onClick = { translateReportId = if (translateReportId == report.id) null else report.id }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Translate, null); Spacer(Modifier.width(3.dp)); Text(if (translateReportId == report.id) "HIDE TRANSLATION" else "TRANSLATE NOTES") }
+                                if (report.userId != userId) TextButton(onClick = { reportToFlag = report }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.Flag, null); Spacer(Modifier.width(3.dp)); Text("REPORT") }
+                                if (report.userId == userId) TextButton(onClick = { deleteReportTarget = report }, modifier = Modifier.weight(1f)) { Icon(Icons.Default.DeleteOutline, null); Spacer(Modifier.width(3.dp)); Text("DELETE") }
+                            }
+                            if (translateReportId == report.id) {
+                                TranslateReportText(
+                                    original = report.notes,
+                                    appLanguage = context.getSharedPreferences("gmailgpu_settings", 0).getString("app_language", "system") ?: "system"
+                                )
                             }
                         }
                     }
@@ -687,7 +721,21 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
 
     reportToFlag?.let { report ->
         AlertDialog(
-            onDismissRequest = { reportToFlag = null },
+            onDismissRequest = { reportToFlag = null     deleteReportTarget?.let { report ->
+        AlertDialog(
+            onDismissRequest = { deleteReportTarget = null },
+            icon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
+            title = { Text("Delete your test report?") },
+            text = { Text("This removes your community test and its evidence from the compatibility database. Related comments and watch notifications are removed by database relationships; saved configurations keep their copied settings.") },
+            confirmButton = {
+                TextButton(onClick = { deleteOwnReport(report) }) { Text("DELETE REPORT") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteReportTarget = null }) { Text("CANCEL") }
+            }
+        )
+    }
+},
             icon = { Icon(Icons.Default.Flag, contentDescription = null) },
             title = { Text("Report a community result") },
             text = { Text("Send this result to moderators for review because the result may be misleading. Please use report flags responsibly; do not include private information.") },
@@ -698,6 +746,51 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                 TextButton(onClick = { reportToFlag = null }) { Text("CANCEL") }
             }
         )
+    }
+}
+
+@Composable
+private fun TranslateReportText(original: String, appLanguage: String) {
+    val configuration = LocalConfiguration.current
+    val deviceLanguage = remember(configuration) {
+        configuration.locales[0]?.language?.lowercase(Locale.ROOT) ?: Locale.getDefault().language
+    }
+    val resolved = remember(appLanguage, deviceLanguage) { resolveAppLanguage(appLanguage, deviceLanguage) }
+    val target = when (resolved) {
+        "ar" -> com.google.mlkit.nl.translate.TranslateLanguage.ARABIC
+        "pt-BR" -> com.google.mlkit.nl.translate.TranslateLanguage.PORTUGUESE
+        else -> null
+    }
+    var translated by remember(original, resolved) { mutableStateOf<String?>(null) }
+    var failed by remember(original, resolved) { mutableStateOf(false) }
+
+    LaunchedEffect(original, resolved) {
+        translated = null
+        failed = false
+        if (target == null) return@LaunchedEffect
+        runCatching {
+            val source = com.google.mlkit.nl.translate.TranslateLanguage.ENGLISH
+            ChatTranslationCache.ensureModel(source, target)
+            ChatTranslationCache.translator(source, target).translate(original).await()
+        }.onSuccess { translated = it }
+         .onFailure { failed = true }
+    }
+
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Translated notes • ${when (resolved) { "ar" -> "Arabic"; "pt-BR" -> "Portuguese (Brazil)"; else -> "English / device default" }}", fontWeight = FontWeight.SemiBold)
+            when {
+                target == null -> Text("Choose Arabic or Portuguese in Settings to translate report notes.", style = MaterialTheme.typography.bodySmall)
+                translated != null -> Text(translated!!, style = MaterialTheme.typography.bodyMedium)
+                failed -> Text("Translation could not be downloaded. The original report remains available.", style = MaterialTheme.typography.bodySmall)
+                else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Preparing offline translation model…", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Text("Machine translation may alter technical nuance; preserve exact error codes and version strings.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
