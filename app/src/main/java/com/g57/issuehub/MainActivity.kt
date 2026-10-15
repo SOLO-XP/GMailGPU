@@ -26,6 +26,7 @@ import androidx.compose.material3.*
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +45,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.g57.issuehub.data.Attachment
 import com.g57.issuehub.data.G57Repository
 import com.g57.issuehub.data.SupabaseProvider
@@ -123,10 +127,29 @@ internal fun AppText(
 }
 
 class MainActivity : ComponentActivity() {
+    private var pendingNotificationIssueId by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { G57App() }
+        GMailGpuPush.createChannel(this)
+        pendingNotificationIssueId = readIssueId(intent)
+        setContent {
+            G57App(
+                pendingNotificationIssueId = pendingNotificationIssueId,
+                onNotificationConsumed = { pendingNotificationIssueId = null }
+            )
+        }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingNotificationIssueId = readIssueId(intent)
+    }
+
+    private fun readIssueId(intent: Intent?): String? =
+        intent?.getStringExtra(GMailGpuPush.EXTRA_ISSUE_ID)
+            ?: intent?.getStringExtra("issue_id")
 }
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -163,7 +186,11 @@ private fun g57Palette(choice: String): G57Palette = when (choice) {
 }
 
 @Composable
-fun G57App(vm: G57ViewModel = viewModel()) {
+fun G57App(
+    vm: G57ViewModel = viewModel(),
+    pendingNotificationIssueId: String? = null,
+    onNotificationConsumed: () -> Unit = {}
+) {
     val ui by vm.ui.collectAsState()
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -174,6 +201,60 @@ fun G57App(vm: G57ViewModel = viewModel()) {
     }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = context.findActivity() as? LifecycleOwner
+    var activityStarted by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true)
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+    DisposableEffect(lifecycleOwner) {
+        if (lifecycleOwner == null) return@DisposableEffect onDispose { }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> activityStarted = true
+                Lifecycle.Event.ON_STOP -> activityStarted = false
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(ui.profile?.id) {
+        if (ui.profile == null) return@LaunchedEffect
+        GMailGpuPush.createChannel(context)
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        GMailGpuPush.tokenOrNull(context)?.let { vm.registerPushToken(it) }
+    }
+
+    LaunchedEffect(ui.profile?.id, activityStarted) {
+        if (ui.profile == null || !SupabaseProvider.enabled) return@LaunchedEffect
+        if (!activityStarted) {
+            vm.setPresenceOnline(false)
+            return@LaunchedEffect
+        }
+        vm.setPresenceOnline(true)
+        vm.refreshChatSignals()
+        while (true) {
+            delay(20_000)
+            vm.setPresenceOnline(true)
+            vm.refreshChatSignals()
+        }
+    }
+
+    LaunchedEffect(pendingNotificationIssueId, ui.profile?.id) {
+        val issueId = pendingNotificationIssueId ?: return@LaunchedEffect
+        if (ui.profile == null) return@LaunchedEffect
+        vm.openIssueFromNotification(issueId)
+        onNotificationConsumed()
+    }
 
     // Hide only screens that reveal registered/resolved usernames. Other app screens
     // continue to allow screenshots, including screenshots of images and issue evidence.
@@ -623,9 +704,10 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                 TextButton(onClick = {
                     vm.markNotificationRead(notification)
                     shownNotification = null
-                }) { AppText("OK") }
+                    notification.issueId?.let(vm::openIssueFromNotification)
+                }) { AppText(if (notification.issueId != null) "OPEN ISSUE" else "OK") }
             },
-            title = { AppText("GMailGPU • Problem Resolved ✅") },
+            title = { AppText(if (notification.title.contains("reply", true)) "GMailGPU • New reply" else "GMailGPU • Notification") },
             text = { AppText("${notification.title}\n\n${notification.message}") }
         )
     }
@@ -1917,11 +1999,57 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error) }
             }
 
+            val counterpartCandidates = if (admin) {
+                ui.presenceRecords.filter { it.userId == issue.userId }
+            } else {
+                ui.presenceRecords.filter { it.role.equals("admin", ignoreCase = true) }
+            }
+            val counterpartPresence = counterpartCandidates.firstOrNull { it.isFreshlyOnline() }
+                ?: counterpartCandidates.maxByOrNull { it.lastSeenAt.orEmpty() }
+            val counterpartOnline = counterpartPresence?.isFreshlyOnline() == true
+            val counterpartName = if (admin) "User" else "Developer"
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = G57Card
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(10.dp),
+                        shape = RoundedCornerShape(50),
+                        color = if (counterpartOnline) Color(0xFF3DDC84) else G57Muted
+                    ) { }
+                    Column(Modifier.weight(1f)) {
+                        AppText(
+                            if (counterpartOnline) "$counterpartName online" else "$counterpartName offline",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        val seen = counterpartPresence?.lastSeenAt?.replace("T", " ")?.take(16)
+                        AppText(
+                            when {
+                                counterpartOnline -> "Active in GMailGPU just now • You can send a message"
+                                seen != null -> "Last seen: $seen"
+                                else -> "Last-seen status will appear after they open the app"
+                            },
+                            color = G57Muted,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                    Icon(
+                        if (counterpartOnline) Icons.Default.Chat else Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = if (counterpartOnline) Color(0xFF3DDC84) else G57Muted
+                    )
+                }
+            }
             AppText(
                 if (admin) "ISSUE CHAT • USER" else "CHAT WITH DEVELOPER",
                 color = G57Cyan,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 14.dp)
+                fontWeight = FontWeight.Bold
             )
             AppText(
                 "Messages are saved to this issue. Only the issue owner and admins can read or reply.",
@@ -2185,6 +2313,14 @@ private fun AttachmentRow(
             Icon(Icons.Default.OpenInNew, contentDescription = "Open attachment", tint = G57Muted)
         }
     }
+}
+
+private fun UserPresence.isFreshlyOnline(): Boolean {
+    if (!isOnline || lastSeenAt.isNullOrBlank()) return false
+    val instant = runCatching { java.time.OffsetDateTime.parse(lastSeenAt).toInstant() }.getOrNull()
+        ?: runCatching { java.time.Instant.parse(lastSeenAt) }.getOrNull()
+        ?: return false
+    return instant.isAfter(java.time.Instant.now().minusSeconds(90))
 }
 
 @Composable
