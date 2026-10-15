@@ -141,6 +141,17 @@ private data class GameTesterProfile(
     @SerialName("updated_at") val updatedAt: String? = null
 )
 
+@Serializable
+private data class GameReportFlag(
+    val id: String,
+    @SerialName("report_id") val reportId: String,
+    @SerialName("reporter_id") val reporterId: String,
+    val reason: String,
+    val details: String = "",
+    val status: String = "open",
+    @SerialName("created_at") val createdAt: String? = null
+)
+
 private data class DriverRelease(
     val repository: String,
     val latestVersion: String,
@@ -180,6 +191,8 @@ internal fun GameLabScreen(
     var watchNotifications by remember { mutableStateOf(emptyList<GameWatchNotification>()) }
     var savedConfigs by remember { mutableStateOf(emptyList<GameSavedConfiguration>()) }
     var testerProfile by remember { mutableStateOf<GameTesterProfile?>(null) }
+    var publicTesters by remember { mutableStateOf(emptyList<GameTesterProfile>()) }
+    var reportFlags by remember { mutableStateOf(emptyList<GameReportFlag>()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -252,9 +265,18 @@ internal fun GameLabScreen(
                     filter { eq("user_id", userId) }
                     order(column = "created_at", order = Order.DESCENDING)
                 }.decodeList<GameSavedConfiguration>()
+                userPrefs.edit().putString("gmailgpu_saved_configs_cache", gameLabJson.encodeToString(savedConfigs)).apply()
                 val profiles = client.from("game_tester_profiles").select(Columns.ALL) {
                     filter { eq("user_id", userId) }
                 }.decodeList<GameTesterProfile>()
+                publicTesters = client.from("game_tester_profiles").select(Columns.ALL) {
+                    filter { eq("is_public", true) }
+                }.decodeList<GameTesterProfile>().filterNot { it.userId == userId }
+                if (profile.role.equals("admin", true)) {
+                    reportFlags = client.from("game_report_flags").select(Columns.ALL) {
+                        order(column = "created_at", order = Order.DESCENDING)
+                    }.decodeList<GameReportFlag>()
+                }
                 testerProfile = profiles.firstOrNull()
                 profileName = testerProfile?.displayName ?: profile.username
                 profileBio = testerProfile?.bio.orEmpty()
@@ -269,6 +291,10 @@ internal fun GameLabScreen(
                             usingOfflineCache = true
                             notice = "Offline mode: showing the most recently cached community reports."
                         }
+                }
+                userPrefs.getString("gmailgpu_saved_configs_cache", null)?.let { configCache ->
+                    runCatching { gameLabJson.decodeFromString<List<GameSavedConfiguration>>(configCache) }
+                        .onSuccess { savedConfigs = it }
                 }
                 error = if (cached != null) {
                     "Some cloud tools are unavailable offline. Cached game results remain available."
@@ -410,6 +436,20 @@ internal fun GameLabScreen(
                 })
             }.onSuccess { notice = "Report sent to moderators for review." }
              .onFailure { error = "Could not report this entry: ${it.message}" }
+        }
+    }
+
+    fun moderateFlag(flag: GameReportFlag, status: String) {
+        if (!isAdmin) return
+        scope.launch {
+            runCatching {
+                client.from("game_report_flags").update(buildJsonObject { put("status", status) }) {
+                    filter { eq("id", flag.id) }
+                }
+            }.onSuccess {
+                reportFlags = reportFlags.map { if (it.id == flag.id) it.copy(status = status) else it }
+                notice = "Moderation status updated."
+            }.onFailure { error = "Unable to update moderation flag: ${it.message}" }
         }
     }
 
@@ -954,6 +994,25 @@ internal fun GameLabScreen(
                             }
                         }
                     }
+                    item { HorizontalDivider(); Text("Community tester highlights", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
+                    if (publicTesters.isEmpty()) item { Text("No public tester profiles yet. Users opt in from Profile & Stats.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    items(publicTesters, key = { it.userId }) { tester ->
+                        val testerRuns = reports.filter { it.userId == tester.userId }
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(tester.displayName, fontWeight = FontWeight.Bold)
+                                if (tester.bio.isNotBlank()) Text(tester.bio)
+                                Text("${testerRuns.size} visible test(s) • ${testerRuns.count { it.reviewStatus == "verified" }} verified", style = MaterialTheme.typography.bodySmall)
+                                val badge = when {
+                                    testerRuns.count { it.reviewStatus == "verified" } >= 10 -> "Gold Verified Tester"
+                                    testerRuns.count { it.reviewStatus == "verified" } >= 3 -> "Verified Tester"
+                                    testerRuns.isNotEmpty() -> "Community Tester"
+                                    else -> "New Tester"
+                                }
+                                AssistChip(onClick = {}, label = { Text(badge) })
+                            }
+                        }
+                    }
                     item { Text("Test coverage by GPU", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold) }
                     items(gameLabGpuChoices.filter { it != "Any GPU" }) { gpu ->
                         val count = reports.count { it.gpuFamily == gpu }
@@ -996,6 +1055,25 @@ internal fun GameLabScreen(
                                         Button(onClick = { reviewReport(report, "verified") }, modifier = Modifier.weight(1f)) { Text("VERIFY") }
                                     }
                                     OutlinedButton(onClick = { reviewReport(report, "rejected") }, modifier = Modifier.fillMaxWidth()) { Text("REJECT REPORT") }
+                                }
+                            }
+                        }
+                        item { HorizontalDivider(); Text("Moderation flags", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
+                        val openFlags = reportFlags.filter { it.status == "open" || it.status == "reviewing" }
+                        item { Text("${openFlags.size} open flag(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        if (openFlags.isEmpty()) item { EmptyState("No open moderation flags.") }
+                        items(openFlags, key = { "flag-${it.id}" }) { flag ->
+                            val flaggedReport = reports.firstOrNull { it.id == flag.reportId }
+                            Card(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Text(flaggedReport?.gameName ?: "Removed / unavailable report", fontWeight = FontWeight.Bold)
+                                    Text("Reason: ${flag.reason} • ${flag.createdAt.orEmpty().take(10)}")
+                                    if (flag.details.isNotBlank()) Text(flag.details)
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedButton(onClick = { moderateFlag(flag, "reviewing") }, modifier = Modifier.weight(1f)) { Text("REVIEWING") }
+                                        Button(onClick = { moderateFlag(flag, "resolved") }, modifier = Modifier.weight(1f)) { Text("RESOLVE") }
+                                    }
+                                    TextButton(onClick = { moderateFlag(flag, "dismissed") }, modifier = Modifier.align(Alignment.End)) { Text("DISMISS FLAG") }
                                 }
                             }
                         }
