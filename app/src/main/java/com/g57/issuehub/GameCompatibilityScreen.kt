@@ -721,21 +721,7 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
 
     reportToFlag?.let { report ->
         AlertDialog(
-            onDismissRequest = { reportToFlag = null     deleteReportTarget?.let { report ->
-        AlertDialog(
-            onDismissRequest = { deleteReportTarget = null },
-            icon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
-            title = { Text("Delete your test report?") },
-            text = { Text("This removes your community test and its evidence from the compatibility database. Related comments and watch notifications are removed by database relationships; saved configurations keep their copied settings.") },
-            confirmButton = {
-                TextButton(onClick = { deleteOwnReport(report) }) { Text("DELETE REPORT") }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleteReportTarget = null }) { Text("CANCEL") }
-            }
-        )
-    }
-},
+            onDismissRequest = { reportToFlag = null },
             icon = { Icon(Icons.Default.Flag, contentDescription = null) },
             title = { Text("Report a community result") },
             text = { Text("Send this result to moderators for review because the result may be misleading. Please use report flags responsibly; do not include private information.") },
@@ -744,6 +730,21 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(onClick = { reportToFlag = null }) { Text("CANCEL") }
+            }
+        )
+    }
+
+    deleteReportTarget?.let { report ->
+        AlertDialog(
+            onDismissRequest = { deleteReportTarget = null },
+            icon = { Icon(Icons.Default.DeleteOutline, contentDescription = null) },
+            title = { Text("Delete your test report?") },
+            text = { Text("This removes your community test and its evidence from the compatibility database. Related comments and watch alerts are removed by database relationships; saved configurations keep their copied settings.") },
+            confirmButton = {
+                TextButton(onClick = { deleteOwnReport(report) }) { Text("DELETE REPORT") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteReportTarget = null }) { Text("CANCEL") }
             }
         )
     }
