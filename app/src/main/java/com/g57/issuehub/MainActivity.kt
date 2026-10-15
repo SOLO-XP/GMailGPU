@@ -1918,6 +1918,8 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
     var showDelete by remember { mutableStateOf(false) }
     var note by remember(issue.id) { mutableStateOf(issue.developerNote.orEmpty()) }
     var statusExpanded by remember { mutableStateOf(false) }
+    var showChatNotificationSettings by remember(issue.id) { mutableStateOf(false) }
+    var notificationModeDraft by remember(issue.id, ui.chatNotificationMode) { mutableStateOf(ui.chatNotificationMode) }
     var imagePreviewUrl by remember { mutableStateOf<String?>(null) }
     var imagePreviewName by remember { mutableStateOf<String?>(null) }
     var imagePreviewError by remember { mutableStateOf<String?>(null) }
@@ -1928,6 +1930,12 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
     LaunchedEffect(issue.id, admin) {
         if (admin && SupabaseProvider.enabled) {
             runCatching { G57Repository().markIssueViewedByAdmin(issue.id) }
+        }
+    }
+    LaunchedEffect(issue.id, ui.chatMessages.lastOrNull()?.id) {
+        if (ui.chatMessages.isNotEmpty() && SupabaseProvider.enabled) {
+            delay(750)
+            vm.markIssueMessagesRead(issue.id)
         }
     }
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -2098,12 +2106,48 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 color = G57Muted,
                 style = MaterialTheme.typography.bodySmall
             )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                OutlinedButton(onClick = { vm.refreshIssueMessages(issue.id) }, enabled = !ui.loading) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = { vm.refreshIssueMessages(issue.id) },
+                    enabled = !ui.loading,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
-                    AppText("REFRESH CHAT")
+                    AppText("REFRESH")
                 }
+                OutlinedButton(
+                    onClick = {
+                        notificationModeDraft = ui.chatNotificationMode
+                        showChatNotificationSettings = true
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Notifications, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    AppText("ALERT SETTINGS")
+                }
+            }
+            AppText(
+                when (ui.chatNotificationMode) {
+                    "muted" -> "Alerts muted for this issue"
+                    "important" -> "Important replies only"
+                    else -> "All reply alerts enabled"
+                },
+                color = G57Muted,
+                style = MaterialTheme.typography.labelSmall
+            )
+            ui.chatTypingStates.firstOrNull { it.userId != ui.profile?.id }?.let { typing ->
+                AppText(
+                    "${typing.username.ifBlank { if (admin) "User" else "Developer" }} is typing…",
+                    color = G57Cyan,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             if (ui.chatMessages.isEmpty()) {
                 AppText("No messages yet. Start the conversation about this issue.", color = G57Muted)
@@ -2116,18 +2160,44 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            AppText(
-                                when {
-                                    isMine -> "You"
-                                    admin -> issue.userUsername ?: "User"
-                                    else -> "Developer"
-                                },
-                                color = if (isMine) G57Cyan else G57Primary,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AppText(
+                                    when {
+                                        isMine -> "You"
+                                        admin -> issue.userUsername ?: "User"
+                                        else -> "Developer"
+                                    },
+                                    color = if (isMine) G57Cyan else G57Primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (message.isImportant) {
+                                    Spacer(Modifier.width(8.dp))
+                                    AppText(
+                                        "IMPORTANT",
+                                        color = Color(0xFFFFC857),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
                             AutoTranslatedMessage(message.body, ui.appLanguage)
                             message.createdAt?.let {
                                 AppText(it.replace("T", " ").take(16), color = G57Muted, style = MaterialTheme.typography.labelSmall)
+                            }
+                            if (isMine) {
+                                AppText(
+                                    when {
+                                        message.readAt != null -> "✓✓ Read"
+                                        message.deliveredAt != null -> "✓ Delivered"
+                                        else -> "✓ Sent"
+                                    },
+                                    color = if (message.readAt != null) G57Cyan else G57Muted,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
                             }
                         }
                     }
@@ -2143,6 +2213,23 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !ui.loading
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = ui.chatMarkImportant,
+                    onCheckedChange = vm::setChatMarkImportant
+                )
+                Column(Modifier.weight(1f)) {
+                    AppText("Mark this reply as important", fontWeight = FontWeight.SemiBold)
+                    AppText(
+                        "Recipients using important-only alerts will be notified.",
+                        color = G57Muted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
             Button(
                 onClick = { vm.sendIssueMessage(issue.id) },
                 enabled = !ui.loading && ui.chatDraft.isNotBlank(),
@@ -2154,6 +2241,50 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             }
             ui.error?.let { AppText(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             ui.success?.let { AppText(it, color = G57Cyan, style = MaterialTheme.typography.bodySmall) }
+
+            if (showChatNotificationSettings) {
+                AlertDialog(
+                    onDismissRequest = { showChatNotificationSettings = false },
+                    title = { AppText("Issue notification settings", fontWeight = FontWeight.Bold) },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AppText(
+                                "Choose which replies alert you for this issue. Muting does not delete messages.",
+                                color = G57Muted,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            listOf(
+                                "all" to ("All replies" to "Alert me for every reply"),
+                                "important" to ("Important replies only" to "Only explicitly important replies alert me"),
+                                "muted" to ("Mute this issue" to "Do not send reply alerts for this issue")
+                            ).forEach { (mode, copy) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = notificationModeDraft == mode,
+                                        onClick = { notificationModeDraft = mode }
+                                    )
+                                    Column(Modifier.weight(1f)) {
+                                        AppText(copy.first, fontWeight = FontWeight.SemiBold)
+                                        AppText(copy.second, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showChatNotificationSettings = false
+                            vm.setChatNotificationMode(issue.id, notificationModeDraft)
+                        }) { AppText("SAVE") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showChatNotificationSettings = false }) { AppText("CANCEL") }
+                    }
+                )
+            }
 
             if (admin) {
                 AppText("DEVELOPER TOOLS", color = G57Cyan, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 14.dp))
