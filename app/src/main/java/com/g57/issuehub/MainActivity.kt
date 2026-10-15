@@ -966,7 +966,7 @@ private fun exportDriverTestRecords(records: List<DriverTestRecord>): String = b
     records.forEach { record ->
         appendLine(record.gpu + " | " + record.game + " | " + record.driver +
             " | Average FPS: " + record.averageFps +
-            " | Minimum FPS: " + if (record.minimumFps > 0) record.minimumFps else "not recorded" +
+            " | Minimum FPS: " + (if (record.minimumFps > 0) record.minimumFps.toString() else "not recorded") +
             " | Graphics: " + record.graphicsResult + " | " + record.testedAt)
         if (record.notes.isNotBlank()) appendLine("Notes: " + record.notes)
     }
@@ -985,9 +985,9 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
     )
     val visualReferences = listOf(
         Triple("G52", "Open Mali-G52 architecture image", "https://www.arm.com/-/media/arm%20developer%20community/images/block%20diagrams/mali%20processor/mali-g52%20diagram%20v2-01.png?h=1647&hash=18201226E04DC4D55B13858082647F28&la=zh-CN&rev=58ae4edd858b421faade97bcc6cb3d22&revision=58ae4edd-858b-421f-aade-97bcc6b3d22&w=1578"),
-        Triple("G57", "Open Arm architecture notes and PanVK tests", "https://github.com/Noysz/panvk-g99-jm"),
-        Triple("G615", "Open G615-specific validation notes", "https://github.com/zenithblue-oss/panvk-kbase-android/blob/main/docs/MALI-GPU-ARCHITECTURES.md"),
-        Triple("G720", "Open Mali-G720 reference image", "https://www.androidauthority.com/wp-content/uploads/2023/05/Arm-5th-Gen-GPU-Immortalis-G720.jpg")
+        Triple("G57", "Open Mali-G57 architecture diagram", "https://cdn.mobilecity.vn/mobilecity-vn/images/2024/03/danh-gia-hieu-nang-unisoc-tiger-t612-7.jpg"),
+        Triple("G615", "Open Mali-G615 architecture diagram", "https://www.notebookcheck.net/fileadmin/Notebooks/ARM/Arm_Mali-G615.jpg"),
+        Triple("G720", "Open Mali-G720 architecture illustration", "https://www.androidauthority.com/wp-content/uploads/2023/05/Arm-5th-Gen-GPU-Immortalis-G720.jpg")
     )
     var selectedGpu by remember { mutableStateOf("G57") }
     var selectedDriver by remember { mutableStateOf("System Driver") }
@@ -999,6 +999,9 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
     var records by remember { mutableStateOf(loadDriverTestRecords(context)) }
     var showClearHistory by remember { mutableStateOf(false) }
     var feedbackMessage by remember { mutableStateOf<String?>(null) }
+    var referenceImageUrl by remember { mutableStateOf<String?>(null) }
+    var referenceImageTitle by remember { mutableStateOf<String?>(null) }
+    var selectedSymptom by remember { mutableStateOf("Black textures / missing text") }
 
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Mali Driver Hub • evidence, testing & community projects") { vm.back() }
@@ -1052,9 +1055,74 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
                                     AppText("Mali-" + gpu, color = tint, fontWeight = FontWeight.ExtraBold)
                                     AppText(label, color = G57Muted, style = MaterialTheme.typography.bodySmall)
                                 }
-                                IconButton(onClick = { vm.openExternalUrl(url) }) {
-                                    Icon(Icons.Default.OpenInNew, contentDescription = "Open reference", tint = G57Cyan)
+                                IconButton(onClick = {
+                                    referenceImageUrl = url
+                                    referenceImageTitle = gpu + " • " + label
+                                }) {
+                                    Icon(Icons.Default.Image, contentDescription = "Preview GPU reference", tint = G57Cyan)
                                 }
+                            }
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = G57Card),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            AppText("🧭 QUICK TROUBLESHOOTER", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                            AppText("Choose the symptom to get a safe first-check list. These steps diagnose the issue; they do not promise a fix.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                            listOf(
+                                "Black textures / missing text",
+                                "Vulkan error / won't launch",
+                                "Low FPS / stutter",
+                                "Crash / freeze"
+                            ).forEach { symptom ->
+                                FilterChip(
+                                    selected = selectedSymptom == symptom,
+                                    onClick = { selectedSymptom = symptom },
+                                    label = { AppText(symptom) }
+                                )
+                            }
+                            val steps = when (selectedSymptom) {
+                                "Black textures / missing text" -> listOf(
+                                    "Capture a screenshot in the exact scene and note which textures are missing.",
+                                    "Repeat the same scene with the other driver if available; do not change resolution or other settings.",
+                                    "Attach the screenshot and a log from immediately after the test."
+                                )
+                                "Vulkan error / won't launch" -> listOf(
+                                    "Copy the full Vulkan error text instead of only writing 'crashed'.",
+                                    "Record the selected driver, Winlator/GameHub version, Wine and DXVK versions.",
+                                    "Attach the startup log and note whether the game worked with another driver."
+                                )
+                                "Low FPS / stutter" -> listOf(
+                                    "Warm up the game and test the same scene three times with matching settings.",
+                                    "Record average FPS, minimum FPS, resolution and whether the phone is overheating.",
+                                    "Compare recorded results in Driver Test Lab; FPS alone does not prove better rendering."
+                                )
+                                else -> listOf(
+                                    "Write the exact steps that trigger the crash and whether it happens every time.",
+                                    "Collect the log immediately after the crash, before launching the game again.",
+                                    "Include device/GPU, driver build, emulator, Wine and DXVK details."
+                                )
+                            }
+                            steps.forEachIndexed { index, step ->
+                                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(color = G57Primary.copy(alpha = 0.14f), shape = RoundedCornerShape(50)) {
+                                        AppText((index + 1).toString(), color = G57Primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp))
+                                    }
+                                    AppText(step, color = G57Text, modifier = Modifier.weight(1f))
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { vm.openExternalUrl("https://github.com/SOLO-XP/GMailGPU/issues/new/choose") },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.BugReport, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                AppText("REPORT THIS PROBLEM ON GITHUB")
                             }
                         }
                     }
@@ -1311,6 +1379,34 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
+    }
+
+    if (referenceImageUrl != null) {
+        val imageUrl = referenceImageUrl!!
+        AlertDialog(
+            onDismissRequest = { referenceImageUrl = null; referenceImageTitle = null },
+            title = { AppText(referenceImageTitle ?: "GPU reference image", color = G57Text, fontWeight = FontWeight.Bold) },
+            text = {
+                AndroidView(
+                    factory = { webContext ->
+                        WebView(webContext).apply {
+                            settings.javaScriptEnabled = false
+                            settings.allowFileAccess = false
+                            settings.allowContentAccess = false
+                            setBackgroundColor(android.graphics.Color.DKGRAY)
+                            webViewClient = WebViewClient()
+                            loadUrl(imageUrl)
+                        }
+                    },
+                    update = { view -> if (view.url != imageUrl) view.loadUrl(imageUrl) },
+                    modifier = Modifier.fillMaxWidth().height(420.dp)
+                )
+            },
+            confirmButton = { TextButton(onClick = { referenceImageUrl = null; referenceImageTitle = null }) { AppText("CLOSE") } },
+            dismissButton = {
+                TextButton(onClick = { vm.openExternalUrl(imageUrl) }) { AppText("OPEN EXTERNALLY") }
+            }
+        )
     }
 
     if (showClearHistory) {
