@@ -5,10 +5,10 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.3.4 Beta coming soon" src="https://img.shields.io/badge/0.3.4%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
+  <img alt="Version 0.5 Beta coming soon" src="https://img.shields.io/badge/0.3.4%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
 </p>
 
-> 🚧 **COMING SOON — 0.3.4 Beta is not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. Version 0.3.3 Beta remains the latest published version until 0.3.4 Beta is released.
+> 🚧 **COMING SOON — 0.5 Beta is not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. Version 0.3.3 Beta remains the latest published version until 0.5 Beta is released.
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
@@ -24,9 +24,9 @@
 
 ---
 
-## 🚧 Coming soon: 0.3.4 Beta — complete feature list
+## 🚧 Coming soon: 0.5 Beta — complete feature list
 
-**The features listed in this section are planned for 0.3.4 Beta. They are not part of the currently published APK and are not available for download yet.**
+**The features listed in this section are planned for 0.5 Beta. They are not part of the currently published APK and are not available for download yet.**
 
 ### Chat, alerts, and presence
 - 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
@@ -70,7 +70,7 @@
 - 🌐 **Expanded language support** — language-aware labels, forms, filters, dialogs, and buttons across the app.
 - 🧪 **Safer report and test submission flow** — keep cover artwork separate from evidence and make test details easier to review.
 
-**Release status:** 0.3.3 Beta remains the current public release. Version 0.3.4 Beta is still **COMING SOON** and will be announced only after the APK and required server setup are verified.
+**Release status:** 0.3.3 Beta remains the current public release. Version 0.5 Beta is still **COMING SOON** and will be announced only after the APK and required server setup are verified.
 
 ---
 
