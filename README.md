@@ -58,6 +58,13 @@
 - 👤 **Tester profiles and contribution badges** — opt in to a public profile and highlight useful, evidence-backed contributions.
 - 📊 **Community statistics and PDF export** — explore test coverage by GPU and share a report summary.
 
+### Profile photos, issue templates, and test resources
+
+- **Profile photos:** users and developers can choose a photo in Settings; the photo appears beside their messages in issue chat.
+- **Reusable issue defaults:** save your usual game, problem type, driver, Winlator version, DXVK, Wine, Proton, VKD3D, and Box64 values in Settings. New issues are prefilled but every field remains editable.
+- **Winlator Test Tools:** a dedicated page for RAM cleanup guidance, the AIO Graphics Test download, and a community index for Wine/Proton, DXVK, VKD3D-Proton, Box64, and related components.
+- **Supabase setup:** run [profile_avatar_and_defaults.sql](profile_avatar_and_defaults.sql) before testing profile photo uploads.
+
 ### Security, permissions, and usability
 - 🛡️ **Issue-update permission improvements** — least-privilege SQL policies and signed-in session checks for issue updates.
 - 🌐 **Expanded language support** — language-aware labels, forms, filters, dialogs, and buttons across the app.
