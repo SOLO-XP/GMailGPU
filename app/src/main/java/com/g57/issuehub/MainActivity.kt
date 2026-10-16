@@ -4,6 +4,14 @@ import android.content.Intent
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
+import java.util.zip.GZIPInputStream
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -1009,6 +1017,50 @@ private suspend fun fetchWinNativeComponents(): List<WinNativeComponent> = withC
     }
 }
 
+private const val RAM_BOOSTER_EXPECTED_SHA256 = "ace42db11c7946d44adcacade52dfc71c59130b90ba6cf5256b14897f4907577"
+
+private fun loadBundledRamBooster(context: Context): ByteArray {
+    val encoded = (1..10).joinToString(separator = "") { part ->
+        val assetPath = "rambooster/part%02d.b64".format(Locale.US, part)
+        context.assets.open(assetPath).bufferedReader().use { it.readText().trim() }
+    }
+    val compressed = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+    val exeBytes = GZIPInputStream(ByteArrayInputStream(compressed)).use { it.readBytes() }
+    val sha256 = MessageDigest.getInstance("SHA-256")
+        .digest(exeBytes)
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    check(exeBytes.size == 59406 && sha256 == RAM_BOOSTER_EXPECTED_SHA256) {
+        "The bundled RAM Booster file failed its integrity check."
+    }
+    return exeBytes
+}
+
+private fun saveRamBoosterToDownloads(context: Context, exeBytes: ByteArray) {
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, "RamBooster_v1.2.2.exe")
+        put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+    val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        ?: error("Android could not create the Downloads file.")
+    try {
+        val output = context.contentResolver.openOutputStream(uri, "w")
+            ?: error("Android could not open the Downloads file.")
+        output.use {
+            it.write(exeBytes)
+            it.flush()
+        }
+        val published = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        context.contentResolver.update(uri, published, null, null)
+    } catch (error: Exception) {
+        context.contentResolver.delete(uri, null, null)
+        throw error
+    }
+}
+
 private fun downloadPublicFile(context: Context, url: String, fileName: String, title: String) {
     val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
         .setTitle(title)
@@ -1025,6 +1077,23 @@ private fun downloadPublicFile(context: Context, url: String, fileName: String, 
 @Composable
 private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    var pendingRamBoosterBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val ramBoosterSavePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val pendingBytes = pendingRamBoosterBytes
+        pendingRamBoosterBytes = null
+        if (uri != null && pendingBytes != null) {
+            try {
+                val output = context.contentResolver.openOutputStream(uri)
+                    ?: error("Could not open the selected destination.")
+                output.use { it.write(pendingBytes); it.flush() }
+                Toast.makeText(context, "RAM Booster saved successfully.", Toast.LENGTH_LONG).show()
+            } catch (error: Exception) {
+                Toast.makeText(context, "Could not save RAM Booster: ${error.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     var components by remember { mutableStateOf<List<WinNativeComponent>>(emptyList()) }
     var componentsLoading by remember { mutableStateOf(true) }
     var componentsError by remember { mutableStateOf(false) }
@@ -1054,12 +1123,28 @@ private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppText("RAM Booster v1.2.2", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     AppText("A memory-cleanup utility intended to release reclaimable RAM before a Winlator game starts. It cannot create physical RAM or guarantee better FPS; Android may reclaim memory again, so compare results before and after.", color = G57Muted)
-                    OutlinedButton(onClick = { }, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = {
+                            try {
+                                val exeBytes = loadBundledRamBooster(context)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    saveRamBoosterToDownloads(context, exeBytes)
+                                    Toast.makeText(context, "RAM Booster downloaded to Downloads.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    pendingRamBoosterBytes = exeBytes
+                                    ramBoosterSavePicker.launch("RamBooster_v1.2.2.exe")
+                                }
+                            } catch (error: Exception) {
+                                Toast.makeText(context, "RAM Booster download failed: ${error.localizedMessage ?: "integrity check failed"}", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
-                        AppText("DOWNLOAD • FILE HOSTING PENDING")
+                        AppText("DOWNLOAD RAM BOOSTER")
                     }
-                    AppText("The uploaded EXE still needs a public download URL before this button can work for every user.", color = G57Muted, style = MaterialTheme.typography.labelSmall)
+                    AppText("Bundled inside GMailGPU — no external download link. The app verifies the original EXE before saving it.", color = G57Muted, style = MaterialTheme.typography.labelSmall)
                 }
             }
             Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
