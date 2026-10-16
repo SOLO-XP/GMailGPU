@@ -794,15 +794,9 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                         runCatching { java.time.Instant.parse(state.expiresAt).isAfter(now) }.getOrDefault(false)
                 }
             val mode = repo.issueNotificationMode(issueId)
-            listOf(refreshed, typing, mode, profiles)
-        }.onSuccess { result ->
-            @Suppress("UNCHECKED_CAST")
-            val messages = result[0] as List<IssueMessage>
-            @Suppress("UNCHECKED_CAST")
-            val typing = result[1] as List<IssueTypingState>
-            val mode = result[2] as String
-            @Suppress("UNCHECKED_CAST")
-            val profiles = result[3] as List<Profile>
+            Triple(refreshed, typing, mode) to profiles
+        }.onSuccess { (chat, profiles) ->
+            val (messages, typing, mode) = chat
             update {
                 copy(
                     chatMessages = messages,
