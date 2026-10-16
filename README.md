@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.5 Beta coming soon" src="https://img.shields.io/badge/0.3.4%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
+  <img alt="Version 0.5 Beta coming soon" src="https://img.shields.io/badge/0.5%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
 </p>
 
 > 🚧 **COMING SOON — 0.5 Beta is not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. Version 0.3.3 Beta remains the latest published version until 0.5 Beta is released.
