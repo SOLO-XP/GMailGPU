@@ -970,6 +970,19 @@ private fun ProfileAvatar(url: String?, username: String, size: androidx.compose
     }
 }
 
+private fun downloadPublicFile(context: Context, url: String, fileName: String, title: String) {
+    val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+        .setTitle(title)
+        .setDescription("Downloading to the Downloads folder")
+        .setMimeType("application/octet-stream")
+        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
+        .setAllowedOverMetered(true)
+        .setAllowedOverRoaming(false)
+    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+    downloadManager.enqueue(request)
+}
+
 @Composable
 private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -998,7 +1011,12 @@ private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
                     AppText("AIO Graphics Test (64-bit)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     AppText("One toolkit for graphics diagnostics and benchmarks, including Vulkan/OpenGL and Direct3D 8/9/10/11/12 paths through the container's available Wine, DXVK, and VKD3D layers. Use it to identify which API fails, renders incorrectly, or performs poorly.", color = G57Muted)
                     Button(onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/The412Banner/AIO-Graphics-Test/releases/latest/download/AIO-Graphics-Test-64bit.exe")))
+                        downloadPublicFile(
+                            context = context,
+                            url = "https://github.com/The412Banner/AIO-Graphics-Test/releases/latest/download/AIO-Graphics-Test-64bit.exe",
+                            fileName = "AIO-Graphics-Test-64bit.exe",
+                            title = "AIO Graphics Test (64-bit)"
+                        )
                     }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.Download, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
