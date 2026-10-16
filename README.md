@@ -62,7 +62,7 @@
 
 - **Profile photos:** users and developers can choose a photo in Settings; the photo appears beside their messages in issue chat.
 - **Reusable issue defaults:** save your usual game, problem type, driver, Winlator version, DXVK, Wine, Proton, VKD3D, and Box64 values in Settings. New issues are prefilled but every field remains editable.
-- **Winlator Test Tools:** a dedicated page for RAM cleanup guidance, the AIO Graphics Test download, and a community index for Wine/Proton, DXVK, VKD3D-Proton, Box64, and related components.
+- **Winlator Test Tools:** RAM Booster v1.2.2 is bundled inside the APK and verified against SHA-256 before the app saves the original EXE to Downloads; AIO Graphics Test downloads directly from its official release, and a searchable in-app component library lets users pick and download Wine/Proton, DXVK, VKD3D-Proton, Box64, and related component versions.
 - **Supabase setup:** run [profile_avatar_and_defaults.sql](profile_avatar_and_defaults.sql) before testing profile photo uploads.
 
 ### Security, permissions, and usability
