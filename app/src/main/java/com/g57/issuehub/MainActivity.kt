@@ -1123,7 +1123,7 @@ private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
                             ) {
                                 items(visibleComponents, key = { it.remoteUrl }) { item ->
                                     Surface(
-                                        color = G57Background,
+                                        color = G57Bg,
                                         shape = RoundedCornerShape(12.dp),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
                                         modifier = Modifier.fillMaxWidth()
