@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
@@ -400,6 +402,13 @@ fun G57App(
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
+                            label = { AppText("Winlator Test Tools") },
+                            selected = ui.screen == ScreenState.WinlatorTestTools,
+                            icon = { Icon(Icons.Default.Science, contentDescription = null) },
+                            onClick = { scope.launch { drawerState.close() }; vm.openWinlatorTestTools() },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
                             label = { AppText("Need Help? • How To Use App") },
                             selected = ui.screen == ScreenState.Help,
                             icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
@@ -455,6 +464,7 @@ fun G57App(
                             vm.setField("description", description)
                         }
                     )
+                    ScreenState.WinlatorTestTools -> WinlatorTestToolsScreen { vm.back() }
                     ScreenState.Help -> HelpScreen(vm)
                     ScreenState.Settings -> SettingsScreen(ui, vm)
                     is ScreenState.AdminIssue -> IssueDetails(screen.issue, ui, vm, admin = true)
@@ -939,12 +949,59 @@ private fun HelpStep(title: String, body: String) {
 
 @Composable
 private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) vm.uploadProfileAvatar(uri)
+    }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Settings") { vm.back() }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            AppText("PROFILE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                ProfileAvatar(ui.profile?.avatarUrl, ui.profile?.username.orEmpty(), 64.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AppText(ui.profile?.username ?: "Your account", fontWeight = FontWeight.Bold)
+                    AppText("Your photo is shown beside your messages in issue chat.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(onClick = { avatarPicker.launch("image/*") }, enabled = !ui.loading) {
+                        Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText(if (ui.loading) "UPLOADING…" else "CHOOSE PROFILE PHOTO")
+                    }
+                }
+            }
+            AppText("Photos must be 8 MB or smaller. Apply profile_avatar_and_defaults.sql in Supabase before uploading.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            Divider(color = G57Border)
+            AppText("DEFAULT ISSUE TEMPLATE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Set your usual Winlator and graphics-driver details once. They will be prefilled whenever you create an issue, and you can still edit every field before submitting.", color = G57Muted)
+            OutlinedTextField(ui.defaultGame, { vm.setIssueDefault("game", it) }, label = { AppText("Default game (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            AppText("Default problem type", color = G57Muted)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Crash", "Black Screen", "Graphics", "Performance", "Vulkan Error", "Other").forEach { type ->
+                    FilterChip(selected = ui.defaultProblemType == type, onClick = { vm.setIssueDefault("problemType", type) }, label = { AppText(type) })
+                }
+            }
+            OutlinedTextField(ui.defaultDriver, { vm.setIssueDefault("driver", it) }, label = { AppText("Default driver") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultEmulator, { vm.setIssueDefault("emulator", it) }, label = { AppText("Default emulator") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultEmulatorVersion, { vm.setIssueDefault("emulatorVersion", it) }, label = { AppText("Default emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultDxvk, { vm.setIssueDefault("dxvk", it) }, label = { AppText("Default DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultWine, { vm.setIssueDefault("wine", it) }, label = { AppText("Default Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultProton, { vm.setIssueDefault("proton", it) }, label = { AppText("Default Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultVkd3d, { vm.setIssueDefault("vkd3d", it) }, label = { AppText("Default VKD3D version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultBox64, { vm.setIssueDefault("box64", it) }, label = { AppText("Default Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedButton(onClick = {
+                vm.setIssueDefault("game", "")
+                vm.setIssueDefault("problemType", "Crash")
+                vm.setIssueDefault("driver", "Mali 26.2")
+                vm.setIssueDefault("emulator", "Winlator")
+                listOf("emulatorVersion", "dxvk", "wine", "proton", "vkd3d", "box64").forEach { vm.setIssueDefault(it, "") }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.RestartAlt, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                AppText("RESET ISSUE DEFAULTS")
+            }
+            Divider(color = G57Border)
             AppText("APP LANGUAGE & TRANSLATION", color = G57Cyan, fontWeight = FontWeight.Bold)
             AppText("Choose the language for the app and chat translations. Use your device language to follow Android's default language automatically.", color = G57Muted)
             AppText("First-time translation can take a little while because the language model may need to download. Please wait; the original message stays visible.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
@@ -2162,13 +2219,16 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(9.dp)
                             ) {
+                                val senderProfile = if (isMine) ui.profile else ui.userProfiles.firstOrNull { it.id == message.senderId }
+                                ProfileAvatar(senderProfile?.avatarUrl, senderProfile?.username ?: if (admin) "User" else "Developer", 34.dp)
                                 AppText(
                                     when {
                                         isMine -> "You"
-                                        admin -> issue.userUsername ?: "User"
-                                        else -> "Developer"
+                                        admin -> senderProfile?.username ?: issue.userUsername ?: "User"
+                                        else -> senderProfile?.username ?: "Developer"
                                     },
                                     color = if (isMine) G57Cyan else G57Primary,
                                     fontWeight = FontWeight.Bold
