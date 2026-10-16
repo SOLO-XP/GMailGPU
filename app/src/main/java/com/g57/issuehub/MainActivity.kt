@@ -962,18 +962,21 @@ private fun HelpStep(title: String, body: String) {
 
 @Composable
 private fun ProfileAvatar(url: String?, username: String, size: androidx.compose.ui.unit.Dp) {
+    val photoUrl = url?.trim()?.takeIf { it.startsWith("https://") }
+    var imageFailed by remember(photoUrl) { mutableStateOf(false) }
     Surface(
         modifier = Modifier.size(size),
         shape = RoundedCornerShape(50),
         color = G57Primary.copy(alpha = 0.18f),
         border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
     ) {
-        if (!url.isNullOrBlank()) {
+        if (photoUrl != null && !imageFailed) {
             AsyncImage(
-                model = url,
+                model = photoUrl,
                 contentDescription = "$username profile photo",
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                onError = { imageFailed = true }
             )
         } else {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -2414,7 +2417,23 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             val counterpartPresence = counterpartCandidates.firstOrNull { it.isFreshlyOnline() }
                 ?: counterpartCandidates.maxByOrNull { it.lastSeenAt.orEmpty() }
             val counterpartOnline = counterpartPresence?.isFreshlyOnline() == true
-            val counterpartName = if (admin) "User" else "Developer"
+            val counterpartProfile = if (admin) {
+                ui.userProfiles.firstOrNull { it.id == issue.userId }
+            } else {
+                ui.chatMessages.asReversed().firstNotNullOfOrNull { message ->
+                    if (message.senderId != ui.profile?.id) {
+                        ui.userProfiles.firstOrNull {
+                            it.id == message.senderId && it.role.equals("admin", ignoreCase = true)
+                        }
+                    } else null
+                } ?: ui.userProfiles.firstOrNull { it.role.equals("admin", ignoreCase = true) }
+            }
+            val currentParticipantName = ui.profile?.username ?: if (admin) "Developer" else "User"
+            val counterpartName = if (admin) {
+                counterpartProfile?.username ?: issue.userUsername ?: "User"
+            } else {
+                counterpartProfile?.username ?: "Developer"
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -2423,14 +2442,16 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(10.dp),
-                        shape = RoundedCornerShape(50),
-                        color = if (counterpartOnline) Color(0xFF3DDC84) else G57Muted
-                    ) { }
-                    Column(Modifier.weight(1f)) {
+                    ProfileAvatar(ui.profile?.avatarUrl, currentParticipantName, 44.dp)
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = "Chat participants",
+                        tint = G57Muted
+                    )
+                    ProfileAvatar(counterpartProfile?.avatarUrl, counterpartName, 44.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         AppText(
                             if (counterpartOnline) "$counterpartName online" else "$counterpartName offline",
                             fontWeight = FontWeight.SemiBold
