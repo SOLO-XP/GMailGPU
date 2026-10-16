@@ -8,6 +8,7 @@ data class Profile(
     val id: String,
     val username: String,
     val role: String = "user",
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 
