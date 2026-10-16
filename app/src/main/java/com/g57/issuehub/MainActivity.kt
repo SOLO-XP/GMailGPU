@@ -28,6 +28,11 @@ import androidx.compose.material3.*
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.Alignment
@@ -970,6 +975,40 @@ private fun ProfileAvatar(url: String?, username: String, size: androidx.compose
     }
 }
 
+private data class WinNativeComponent(
+    val type: String,
+    val verName: String,
+    val remoteUrl: String
+) {
+    val fileName: String
+        get() = remoteUrl.substringAfterLast('/').substringBefore('?').ifBlank { "${verName}.wcp" }
+}
+
+private suspend fun fetchWinNativeComponents(): List<WinNativeComponent> = withContext(Dispatchers.IO) {
+    val connection = URL("https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json")
+        .openConnection() as HttpURLConnection
+    connection.connectTimeout = 12_000
+    connection.readTimeout = 20_000
+    connection.requestMethod = "GET"
+    try {
+        val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
+        val array = JSONArray(jsonText)
+        val result = mutableListOf<WinNativeComponent>()
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val type = item.optString("type").trim()
+            val version = item.optString("verName").trim()
+            val url = item.optString("remoteUrl").trim()
+            if (type.isNotBlank() && version.isNotBlank() && url.startsWith("https://")) {
+                result.add(WinNativeComponent(type, version, url))
+            }
+        }
+        result
+    } finally {
+        connection.disconnect()
+    }
+}
+
 private fun downloadPublicFile(context: Context, url: String, fileName: String, title: String) {
     val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
         .setTitle(title)
@@ -986,6 +1025,23 @@ private fun downloadPublicFile(context: Context, url: String, fileName: String, 
 @Composable
 private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    var components by remember { mutableStateOf<List<WinNativeComponent>>(emptyList()) }
+    var componentsLoading by remember { mutableStateOf(true) }
+    var componentsError by remember { mutableStateOf(false) }
+    var selectedComponentType by remember { mutableStateOf("All") }
+    var componentLoadAttempt by remember { mutableStateOf(0) }
+
+    LaunchedEffect(componentLoadAttempt) {
+        componentsLoading = true
+        componentsError = false
+        try {
+            components = fetchWinNativeComponents()
+        } catch (_: Exception) {
+            componentsError = true
+        } finally {
+            componentsLoading = false
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Winlator Test Tools") { onBack() }
         Column(
@@ -1026,15 +1082,78 @@ private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
                 }
             }
             Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AppText("Winlator Components Library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    AppText("Browse downloadable Wine and Proton builds, DXVK, VKD3D-Proton, Box64 and other Winlator-related components from the community component index. Check compatibility and release notes before replacing a working component.", color = G57Muted)
-                    Button(onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json")))
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Default.OpenInNew, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        AppText("OPEN COMPONENT DOWNLOAD INDEX")
+                    AppText("Browse Wine, Proton, DXVK, VKD3D-Proton, Box64 and related builds here. Select a component type, then download a specific version straight to the device's Downloads folder. The list is loaded from the upstream component index.", color = G57Muted)
+                    val componentTypes = remember(components) { listOf("All") + components.map { it.type }.distinct().sorted() }
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        componentTypes.forEach { type ->
+                            FilterChip(
+                                selected = selectedComponentType == type,
+                                onClick = { selectedComponentType = type },
+                                label = { AppText(type) }
+                            )
+                        }
+                    }
+                    when {
+                        componentsLoading -> {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator()
+                                Spacer(Modifier.width(10.dp))
+                                AppText("Loading components…", color = G57Muted)
+                            }
+                        }
+                        componentsError -> {
+                            AppText("Couldn't load the component list. Check your internet connection and try again.", color = G57Muted)
+                            OutlinedButton(onClick = { componentLoadAttempt++ }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                AppText("RETRY")
+                            }
+                        }
+                        else -> {
+                            val visibleComponents = remember(components, selectedComponentType) {
+                                if (selectedComponentType == "All") components
+                                else components.filter { it.type == selectedComponentType }
+                            }
+                            AppText("${visibleComponents.size} versions", color = G57Muted, style = MaterialTheme.typography.labelMedium)
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth().height(440.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(visibleComponents, key = { it.remoteUrl }) { item ->
+                                    Surface(
+                                        color = G57Background,
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            Modifier.fillMaxWidth().padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                AppText(item.type, color = G57Cyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                                                AppText(item.verName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                            OutlinedButton(onClick = {
+                                                downloadPublicFile(
+                                                    context = context,
+                                                    url = item.remoteUrl,
+                                                    fileName = item.fileName,
+                                                    title = "${item.type} ${item.verName}"
+                                                )
+                                            }) {
+                                                Icon(Icons.Default.Download, contentDescription = null)
+                                                Spacer(Modifier.width(4.dp))
+                                                AppText("DOWNLOAD")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
