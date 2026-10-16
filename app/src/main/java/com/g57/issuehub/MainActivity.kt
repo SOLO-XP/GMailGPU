@@ -948,6 +948,84 @@ private fun HelpStep(title: String, body: String) {
 }
 
 @Composable
+private fun ProfileAvatar(url: String?, username: String, size: androidx.compose.ui.unit.Dp) {
+    Surface(
+        modifier = Modifier.size(size),
+        shape = RoundedCornerShape(50),
+        color = G57Primary.copy(alpha = 0.18f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+    ) {
+        if (!url.isNullOrBlank()) {
+            AsyncImage(
+                model = url,
+                contentDescription = "$username profile photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                AppText(username.trim().firstOrNull()?.uppercase() ?: "?", color = G57Primary, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    Column(Modifier.fillMaxSize()) {
+        BrandHeader("Winlator Test Tools") { onBack() }
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            AppText("TEST UTILITIES FOR WINLATOR", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Optional Windows utilities to help diagnose memory pressure and graphics API compatibility. Run tests carefully and attach their logs or screenshots to an issue when asking for help.", color = G57Muted)
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText("RAM Booster v1.2.2", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("A memory-cleanup utility intended to release reclaimable RAM before a Winlator game starts. It cannot create physical RAM or guarantee better FPS; Android may reclaim memory again, so compare results before and after.", color = G57Muted)
+                    OutlinedButton(onClick = { }, enabled = false, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("DOWNLOAD • FILE HOSTING PENDING")
+                    }
+                    AppText("The uploaded EXE still needs a public download URL before this button can work for every user.", color = G57Muted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText("AIO Graphics Test (64-bit)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("One toolkit for graphics diagnostics and benchmarks, including Vulkan/OpenGL and Direct3D 8/9/10/11/12 paths through the container's available Wine, DXVK, and VKD3D layers. Use it to identify which API fails, renders incorrectly, or performs poorly.", color = G57Muted)
+                    Button(onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/The412Banner/AIO-Graphics-Test/releases/latest/download/AIO-Graphics-Test-64bit.exe")))
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("DOWNLOAD")
+                    }
+                    AppText("Choose the 32-bit build instead if your Winlator container uses 32-bit Windows applications.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText("Winlator Components Library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("Browse downloadable Wine and Proton builds, DXVK, VKD3D-Proton, Box64 and other Winlator-related components from the community component index. Check compatibility and release notes before replacing a working component.", color = G57Muted)
+                    Button(onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json")))
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("OPEN COMPONENT DOWNLOAD INDEX")
+                    }
+                }
+            }
+            AppText("Safety note: download tools only from sources you trust. Test one component at a time, keep a backup of your container, and include the exact tool/version in your issue report.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
 private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) vm.uploadProfileAvatar(uri)
