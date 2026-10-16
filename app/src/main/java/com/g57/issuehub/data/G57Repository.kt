@@ -111,6 +111,14 @@ class G57Repository {
         sb.from("profiles").select(Columns.ALL) { order(column = "created_at", order = Order.ASCENDING) }
             .decodeList()
 
+    // Fetch only developer profiles needed for the issue-chat participant header.
+    // RLS still decides which profiles the signed-in account is permitted to see.
+    suspend fun adminProfiles(): List<Profile> =
+        sb.from("profiles").select(Columns.ALL) {
+            filter { eq("role", "admin") }
+            order(column = "created_at", order = Order.ASCENDING)
+        }.decodeList()
+
     suspend fun myIssues(): List<Issue> =
         sb.from("issues").select(Columns.ALL) { order(column = "created_at", order = Order.DESCENDING) }
             .decodeList()
