@@ -783,7 +783,22 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                 repo.updateTypingState(issueId, typingActive)
             }
             val messages = repo.issueMessages(issueId)
-            val profiles = runCatching { repo.allProfiles() }.getOrDefault(_ui.value.userProfiles)
+            // Load the exact participants individually. Decoding every profile in the
+            // database could fail for an unrelated row and silently hide all chat photos.
+            val issueOwnerId = runCatching { repo.issueById(issueId).userId }.getOrNull()
+            val participantIds = (messages.map { it.senderId } + listOfNotNull(readerId, issueOwnerId))
+                .filter { it.isNotBlank() }
+                .distinct()
+            val participantProfiles = participantIds.mapNotNull { id ->
+                runCatching { repo.profile(id) }.getOrNull()
+            }
+            val developerProfiles = if (_ui.value.profile?.role.equals("admin", ignoreCase = true)) {
+                emptyList()
+            } else {
+                runCatching { repo.adminProfiles() }.getOrDefault(emptyList())
+            }
+            val profiles = (participantProfiles + developerProfiles + _ui.value.userProfiles + listOfNotNull(_ui.value.profile))
+                .distinctBy { it.id }
             if (readerId != null) runCatching { repo.markMessagesDelivered(messages, readerId) }
             val refreshed = runCatching { repo.issueMessages(issueId) }.getOrDefault(messages)
             val now = java.time.Instant.now()
