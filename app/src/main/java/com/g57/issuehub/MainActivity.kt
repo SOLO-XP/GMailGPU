@@ -4,6 +4,14 @@ import android.content.Intent
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
+import java.util.zip.GZIPInputStream
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -18,6 +26,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +36,11 @@ import androidx.compose.material3.*
 import androidx.compose.material3.Text as MaterialText
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import androidx.compose.ui.Alignment
@@ -400,6 +415,13 @@ fun G57App(
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
+                            label = { AppText("Winlator Test Tools") },
+                            selected = ui.screen == ScreenState.WinlatorTestTools,
+                            icon = { Icon(Icons.Default.Science, contentDescription = null) },
+                            onClick = { scope.launch { drawerState.close() }; vm.openWinlatorTestTools() },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
                             label = { AppText("Need Help? • How To Use App") },
                             selected = ui.screen == ScreenState.Help,
                             icon = { Icon(Icons.Default.HelpOutline, contentDescription = null) },
@@ -411,6 +433,13 @@ fun G57App(
                             selected = ui.screen == ScreenState.Settings,
                             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
                             onClick = { scope.launch { drawerState.close() }; vm.openSettings() },
+                            modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                        )
+                        NavigationDrawerItem(
+                            label = { AppText("Performance") },
+                            selected = ui.screen == ScreenState.Performance,
+                            icon = { Icon(Icons.Default.Speed, contentDescription = null) },
+                            onClick = { scope.launch { drawerState.close() }; vm.openPerformance() },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
@@ -443,6 +472,7 @@ fun G57App(
                     ScreenState.AdminSolvedUsers -> AdminSolvedUsers(ui, vm)
                     ScreenState.AdminUserManagement -> AdminUserManagementScreen(ui, vm)
                     ScreenState.DriverDevelopers -> DriverDevelopersScreen(vm)
+                    ScreenState.Performance -> DriverPerformanceScreen { vm.back() }
                     ScreenState.GameCompatibility -> GameCompatibilityScreen { vm.back() }
                     ScreenState.GameLab -> GameLabScreen(
                         onBack = { vm.back() },
@@ -455,6 +485,7 @@ fun G57App(
                             vm.setField("description", description)
                         }
                     )
+                    ScreenState.WinlatorTestTools -> WinlatorTestToolsScreen { vm.back() }
                     ScreenState.Help -> HelpScreen(vm)
                     ScreenState.Settings -> SettingsScreen(ui, vm)
                     is ScreenState.AdminIssue -> IssueDetails(screen.issue, ui, vm, admin = true)
@@ -938,13 +969,350 @@ private fun HelpStep(title: String, body: String) {
 }
 
 @Composable
+private fun ProfileAvatar(url: String?, username: String, size: androidx.compose.ui.unit.Dp) {
+    val photoUrl = url?.trim()?.takeIf { it.startsWith("https://") }
+    var imageFailed by remember(photoUrl) { mutableStateOf(false) }
+    Surface(
+        modifier = Modifier.size(size),
+        shape = RoundedCornerShape(50),
+        color = G57Primary.copy(alpha = 0.18f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border)
+    ) {
+        if (photoUrl != null && !imageFailed) {
+            AsyncImage(
+                model = photoUrl,
+                contentDescription = "$username profile photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                onError = { imageFailed = true }
+            )
+        } else {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                AppText(username.trim().firstOrNull()?.uppercase() ?: "?", color = G57Primary, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+private data class WinNativeComponent(
+    val type: String,
+    val verName: String,
+    val remoteUrl: String
+) {
+    val fileName: String
+        get() = remoteUrl.substringAfterLast('/').substringBefore('?').ifBlank { "${verName}.wcp" }
+}
+
+private suspend fun fetchWinNativeComponents(): List<WinNativeComponent> = withContext(Dispatchers.IO) {
+    val connection = URL("https://raw.githubusercontent.com/nicholasx417/WinNative-Components/refs/heads/main/contents.json")
+        .openConnection() as HttpURLConnection
+    connection.connectTimeout = 12_000
+    connection.readTimeout = 20_000
+    connection.requestMethod = "GET"
+    try {
+        val jsonText = connection.inputStream.bufferedReader().use { it.readText() }
+        val array = JSONArray(jsonText)
+        val result = mutableListOf<WinNativeComponent>()
+        for (index in 0 until array.length()) {
+            val item = array.optJSONObject(index) ?: continue
+            val type = item.optString("type").trim()
+            val version = item.optString("verName").trim()
+            val url = item.optString("remoteUrl").trim()
+            if (type.isNotBlank() && version.isNotBlank() && url.startsWith("https://")) {
+                result.add(WinNativeComponent(type, version, url))
+            }
+        }
+        result
+    } finally {
+        connection.disconnect()
+    }
+}
+
+private const val RAM_BOOSTER_EXPECTED_SHA256 = "ace42db11c7946d44adcacade52dfc71c59130b90ba6cf5256b14897f4907577"
+
+private fun loadBundledRamBooster(context: Context): ByteArray {
+    val encoded = (1..10).joinToString(separator = "") { part ->
+        val assetPath = "rambooster/part%02d.b64".format(Locale.US, part)
+        context.assets.open(assetPath).bufferedReader().use { it.readText().trim() }
+    }
+    val compressed = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+    val exeBytes = GZIPInputStream(ByteArrayInputStream(compressed)).use { it.readBytes() }
+    val sha256 = MessageDigest.getInstance("SHA-256")
+        .digest(exeBytes)
+        .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    check(exeBytes.size == 59406 && sha256 == RAM_BOOSTER_EXPECTED_SHA256) {
+        "The bundled RAM Booster file failed its integrity check."
+    }
+    return exeBytes
+}
+
+private fun saveRamBoosterToDownloads(context: Context, exeBytes: ByteArray) {
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, "RamBooster_v1.2.2.exe")
+        put(MediaStore.MediaColumns.MIME_TYPE, "application/octet-stream")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+    val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+        ?: error("Android could not create the Downloads file.")
+    try {
+        val output = context.contentResolver.openOutputStream(uri, "w")
+            ?: error("Android could not open the Downloads file.")
+        output.use {
+            it.write(exeBytes)
+            it.flush()
+        }
+        val published = ContentValues().apply {
+            put(MediaStore.MediaColumns.IS_PENDING, 0)
+        }
+        context.contentResolver.update(uri, published, null, null)
+    } catch (error: Exception) {
+        context.contentResolver.delete(uri, null, null)
+        throw error
+    }
+}
+
+private fun downloadPublicFile(context: Context, url: String, fileName: String, title: String) {
+    val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+        .setTitle(title)
+        .setDescription("Downloading to the Downloads folder")
+        .setMimeType("application/octet-stream")
+        .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, fileName)
+        .setAllowedOverMetered(true)
+        .setAllowedOverRoaming(false)
+    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+    downloadManager.enqueue(request)
+}
+
+@Composable
+private fun WinlatorTestToolsScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var pendingRamBoosterBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val ramBoosterSavePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        val pendingBytes = pendingRamBoosterBytes
+        pendingRamBoosterBytes = null
+        if (uri != null && pendingBytes != null) {
+            try {
+                val output = context.contentResolver.openOutputStream(uri)
+                    ?: error("Could not open the selected destination.")
+                output.use { it.write(pendingBytes); it.flush() }
+                Toast.makeText(context, "RAM Booster saved successfully.", Toast.LENGTH_LONG).show()
+            } catch (error: Exception) {
+                Toast.makeText(context, "Could not save RAM Booster: ${error.localizedMessage ?: "unknown error"}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    var components by remember { mutableStateOf<List<WinNativeComponent>>(emptyList()) }
+    var componentsLoading by remember { mutableStateOf(true) }
+    var componentsError by remember { mutableStateOf(false) }
+    var selectedComponentType by remember { mutableStateOf("All") }
+    var componentLoadAttempt by remember { mutableStateOf(0) }
+
+    LaunchedEffect(componentLoadAttempt) {
+        componentsLoading = true
+        componentsError = false
+        try {
+            components = fetchWinNativeComponents()
+        } catch (_: Exception) {
+            componentsError = true
+        } finally {
+            componentsLoading = false
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        BrandHeader("Winlator Test Tools") { onBack() }
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            AppText("TEST UTILITIES FOR WINLATOR", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Optional Windows utilities to help diagnose memory pressure and graphics API compatibility. Run tests carefully and attach their logs or screenshots to an issue when asking for help.", color = G57Muted)
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText("RAM Booster v1.2.2", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("A memory-cleanup utility intended to release reclaimable RAM before a Winlator game starts. It cannot create physical RAM or guarantee better FPS; Android may reclaim memory again, so compare results before and after.", color = G57Muted)
+                    Button(
+                        onClick = {
+                            try {
+                                val exeBytes = loadBundledRamBooster(context)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                    saveRamBoosterToDownloads(context, exeBytes)
+                                    Toast.makeText(context, "RAM Booster downloaded to Downloads.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    pendingRamBoosterBytes = exeBytes
+                                    ramBoosterSavePicker.launch("RamBooster_v1.2.2.exe")
+                                }
+                            } catch (error: Exception) {
+                                Toast.makeText(context, "RAM Booster download failed: ${error.localizedMessage ?: "integrity check failed"}", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("DOWNLOAD RAM BOOSTER")
+                    }
+                    AppText("Bundled inside GMailGPU — no external download link. The app verifies the original EXE before saving it.", color = G57Muted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppText("AIO Graphics Test (64-bit)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("One toolkit for graphics diagnostics and benchmarks, including Vulkan/OpenGL and Direct3D 8/9/10/11/12 paths through the container's available Wine, DXVK, and VKD3D layers. Use it to identify which API fails, renders incorrectly, or performs poorly.", color = G57Muted)
+                    Button(onClick = {
+                        downloadPublicFile(
+                            context = context,
+                            url = "https://github.com/The412Banner/AIO-Graphics-Test/releases/latest/download/AIO-Graphics-Test-64bit.exe",
+                            fileName = "AIO-Graphics-Test-64bit.exe",
+                            title = "AIO Graphics Test (64-bit)"
+                        )
+                    }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Download, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("DOWNLOAD")
+                    }
+                    AppText("Choose the 32-bit build instead if your Winlator container uses 32-bit Windows applications.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Surface(color = G57Card, shape = RoundedCornerShape(18.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AppText("Winlator Components Library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    AppText("Browse Wine, Proton, DXVK, VKD3D-Proton, Box64 and related builds here. Select a component type, then download a specific version straight to the device's Downloads folder. The list is loaded from the upstream component index.", color = G57Muted)
+                    val componentTypes = remember(components) { listOf("All") + components.map { it.type }.distinct().sorted() }
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        componentTypes.forEach { type ->
+                            FilterChip(
+                                selected = selectedComponentType == type,
+                                onClick = { selectedComponentType = type },
+                                label = { AppText(type) }
+                            )
+                        }
+                    }
+                    when {
+                        componentsLoading -> {
+                            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator()
+                                Spacer(Modifier.width(10.dp))
+                                AppText("Loading components…", color = G57Muted)
+                            }
+                        }
+                        componentsError -> {
+                            AppText("Couldn't load the component list. Check your internet connection and try again.", color = G57Muted)
+                            OutlinedButton(onClick = { componentLoadAttempt++ }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(6.dp))
+                                AppText("RETRY")
+                            }
+                        }
+                        else -> {
+                            val visibleComponents = remember(components, selectedComponentType) {
+                                if (selectedComponentType == "All") components
+                                else components.filter { it.type == selectedComponentType }
+                            }
+                            AppText("${visibleComponents.size} versions", color = G57Muted, style = MaterialTheme.typography.labelMedium)
+                            LazyColumn(
+                                modifier = Modifier.fillMaxWidth().height(440.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(visibleComponents, key = { it.remoteUrl }) { item ->
+                                    Surface(
+                                        color = G57Bg,
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Row(
+                                            Modifier.fillMaxWidth().padding(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                AppText(item.type, color = G57Cyan, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall)
+                                                AppText(item.verName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                            OutlinedButton(onClick = {
+                                                downloadPublicFile(
+                                                    context = context,
+                                                    url = item.remoteUrl,
+                                                    fileName = item.fileName,
+                                                    title = "${item.type} ${item.verName}"
+                                                )
+                                            }) {
+                                                Icon(Icons.Default.Download, contentDescription = null)
+                                                Spacer(Modifier.width(4.dp))
+                                                AppText("DOWNLOAD")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            AppText("Safety note: download tools only from sources you trust. Test one component at a time, keep a backup of your container, and include the exact tool/version in your issue report.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
 private fun SettingsScreen(ui: UiState, vm: G57ViewModel) {
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) vm.uploadProfileAvatar(uri)
+    }
     Column(Modifier.fillMaxSize()) {
         BrandHeader("Settings") { vm.back() }
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            AppText("PROFILE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                ProfileAvatar(ui.profile?.avatarUrl, ui.profile?.username.orEmpty(), 64.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AppText(ui.profile?.username ?: "Your account", fontWeight = FontWeight.Bold)
+                    AppText("Your photo is shown beside your messages in issue chat.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(onClick = { avatarPicker.launch("image/*") }, enabled = !ui.loading) {
+                        Icon(Icons.Default.AddAPhoto, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText(if (ui.loading) "UPLOADING…" else "CHOOSE PROFILE PHOTO")
+                    }
+                }
+            }
+            AppText("Photos must be 8 MB or smaller. Apply profile_avatar_and_defaults.sql in Supabase before uploading.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+            Divider(color = G57Border)
+            AppText("DEFAULT ISSUE TEMPLATE", color = G57Cyan, fontWeight = FontWeight.Bold)
+            AppText("Set your usual Winlator and graphics-driver details once. They will be prefilled whenever you create an issue, and you can still edit every field before submitting.", color = G57Muted)
+            OutlinedTextField(ui.defaultGame, { vm.setIssueDefault("game", it) }, label = { AppText("Default game (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            AppText("Default problem type", color = G57Muted)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Crash", "Black Screen", "Graphics", "Performance", "Vulkan Error", "Other").forEach { type ->
+                    FilterChip(selected = ui.defaultProblemType == type, onClick = { vm.setIssueDefault("problemType", type) }, label = { AppText(type) })
+                }
+            }
+            OutlinedTextField(ui.defaultDriver, { vm.setIssueDefault("driver", it) }, label = { AppText("Default driver") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultEmulator, { vm.setIssueDefault("emulator", it) }, label = { AppText("Default emulator") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultEmulatorVersion, { vm.setIssueDefault("emulatorVersion", it) }, label = { AppText("Default emulator version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultDxvk, { vm.setIssueDefault("dxvk", it) }, label = { AppText("Default DXVK version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultWine, { vm.setIssueDefault("wine", it) }, label = { AppText("Default Wine version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultProton, { vm.setIssueDefault("proton", it) }, label = { AppText("Default Proton version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultVkd3d, { vm.setIssueDefault("vkd3d", it) }, label = { AppText("Default VKD3D version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedTextField(ui.defaultBox64, { vm.setIssueDefault("box64", it) }, label = { AppText("Default Box64 version") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+            OutlinedButton(onClick = {
+                vm.setIssueDefault("game", "")
+                vm.setIssueDefault("problemType", "Crash")
+                vm.setIssueDefault("driver", "Mali 26.2")
+                vm.setIssueDefault("emulator", "Winlator")
+                listOf("emulatorVersion", "dxvk", "wine", "proton", "vkd3d", "box64").forEach { vm.setIssueDefault(it, "") }
+            }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.RestartAlt, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                AppText("RESET ISSUE DEFAULTS")
+            }
+            Divider(color = G57Border)
             AppText("APP LANGUAGE & TRANSLATION", color = G57Cyan, fontWeight = FontWeight.Bold)
             AppText("Choose the language for the app and chat translations. Use your device language to follow Android's default language automatically.", color = G57Muted)
             AppText("First-time translation can take a little while because the language model may need to download. Please wait; the original message stays visible.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
@@ -1160,16 +1528,6 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
         Triple("G615", "Open Mali-G615 architecture diagram", "https://www.notebookcheck.net/fileadmin/Notebooks/ARM/Arm_Mali-G615.jpg"),
         Triple("G720", "Open Mali-G720 architecture illustration", "https://www.androidauthority.com/wp-content/uploads/2023/05/Arm-5th-Gen-GPU-Immortalis-G720.jpg")
     )
-    var selectedGpu by remember { mutableStateOf("G57") }
-    var selectedDriver by remember { mutableStateOf("System Driver") }
-    var gameName by remember { mutableStateOf("") }
-    var averageFps by remember { mutableStateOf("") }
-    var minimumFps by remember { mutableStateOf("") }
-    var graphicsResult by remember { mutableStateOf("Clean") }
-    var notes by remember { mutableStateOf("") }
-    var records by remember { mutableStateOf(loadDriverTestRecords(context)) }
-    var showClearHistory by remember { mutableStateOf(false) }
-    var feedbackMessage by remember { mutableStateOf<String?>(null) }
     var referenceImageUrl by remember { mutableStateOf<String?>(null) }
     var referenceImageTitle by remember { mutableStateOf<String?>(null) }
     var selectedSymptom by remember { mutableStateOf("Black textures / missing text") }
@@ -1298,196 +1656,6 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
                         }
                     }
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = G57Card),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            AppText("🧪 DRIVER TEST LAB", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
-                            AppText(
-                                "Record tests from your own device. Results stay locally on this phone unless you share them.",
-                                color = G57Muted,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            AppText("GPU", color = G57Text, fontWeight = FontWeight.Bold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-                                listOf("G52", "G57", "G615", "G720").forEach { gpu ->
-                                    FilterChip(
-                                        selected = selectedGpu == gpu,
-                                        onClick = { selectedGpu = gpu },
-                                        label = { AppText(gpu) },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                            AppText("Driver tested", color = G57Text, fontWeight = FontWeight.Bold)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                listOf("System Driver", "PanVK").forEach { driver ->
-                                    FilterChip(
-                                        selected = selectedDriver == driver,
-                                        onClick = { selectedDriver = driver },
-                                        label = { AppText(driver) },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = gameName,
-                                onValueChange = { gameName = it.take(100) },
-                                label = { AppText("Game / test scene") },
-                                placeholder = { AppText("e.g. GTA V — same benchmark scene") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(
-                                    value = averageFps,
-                                    onValueChange = { averageFps = it.filter(Char::isDigit).take(4) },
-                                    label = { AppText("Average FPS *") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = minimumFps,
-                                    onValueChange = { minimumFps = it.filter(Char::isDigit).take(4) },
-                                    label = { AppText("Minimum FPS") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            AppText("Visual / stability result", color = G57Text, fontWeight = FontWeight.Bold)
-                            Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                                listOf("Clean", "Visual bugs", "Crash / freeze", "Too slow").forEach { result ->
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        RadioButton(selected = graphicsResult == result, onClick = { graphicsResult = result })
-                                        AppText(result, color = G57Text)
-                                    }
-                                }
-                            }
-                            OutlinedTextField(
-                                value = notes,
-                                onValueChange = { notes = it.take(800) },
-                                label = { AppText("Notes (optional)") },
-                                placeholder = { AppText("Resolution, DXVK, Wine, stutter, temperature…") },
-                                minLines = 2,
-                                maxLines = 4,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Button(
-                                onClick = {
-                                    val avg = averageFps.toIntOrNull()
-                                    val min = minimumFps.toIntOrNull() ?: 0
-                                    if (gameName.isBlank() || avg == null || avg <= 0 || min < 0 || (min > 0 && min > avg)) {
-                                        feedbackMessage = "Enter a game name and valid FPS values. Minimum FPS cannot exceed average FPS."
-                                    } else {
-                                        val entry = DriverTestRecord(
-                                            selectedGpu,
-                                            gameName.trim(),
-                                            selectedDriver,
-                                            avg,
-                                            min,
-                                            graphicsResult,
-                                            notes.trim(),
-                                            java.time.Instant.now().toString()
-                                        )
-                                        records = (listOf(entry) + records).take(100)
-                                        saveDriverTestRecords(context, records)
-                                        averageFps = ""
-                                        minimumFps = ""
-                                        notes = ""
-                                        feedbackMessage = "Test saved on this device."
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Icon(Icons.Default.Save, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
-                                AppText("SAVE TEST RESULT")
-                            }
-                            AppText(
-                                "For fairer results, warm up the game, use the same scene/settings, close background apps and repeat each test 3 times. Different devices are not directly comparable.",
-                                color = G57Muted,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            feedbackMessage?.let { AppText(it, color = if (it.startsWith("Test saved")) G57Cyan else MaterialTheme.colorScheme.error) }
-                        }
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = G57Card),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    AppText("📊 MY TEST HISTORY", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
-                                    AppText(records.size.toString() + " saved result(s) • stored only on this device", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                }
-                                IconButton(
-                                    onClick = {
-                                        runCatching {
-                                            val share = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_SUBJECT, "GMailGPU Driver Test Results")
-                                                putExtra(Intent.EXTRA_TEXT, exportDriverTestRecords(records))
-                                            }
-                                            context.startActivity(Intent.createChooser(share, "Share test results"))
-                                        }.onFailure { feedbackMessage = "Could not open the share menu." }
-                                    },
-                                    enabled = records.isNotEmpty()
-                                ) { Icon(Icons.Default.Share, contentDescription = "Share results", tint = G57Cyan) }
-                                IconButton(onClick = { showClearHistory = true }, enabled = records.isNotEmpty()) {
-                                    Icon(Icons.Default.DeleteOutline, contentDescription = "Clear history", tint = G57Muted)
-                                }
-                            }
-                            val groups = records.groupBy { it.gpu + "|" + it.game.trim().lowercase(Locale.ROOT) }
-                            val pairs = groups.values.mapNotNull { group ->
-                                val system = group.firstOrNull { it.driver == "System Driver" }
-                                val panvk = group.firstOrNull { it.driver == "PanVK" }
-                                if (system != null && panvk != null) system to panvk else null
-                            }
-                            if (pairs.isEmpty() && records.isNotEmpty()) {
-                                AppText("Save both drivers for the same GPU and game to see a side-by-side comparison here.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                            }
-                            pairs.take(5).forEach { pair ->
-                                val system = pair.first
-                                val panvk = pair.second
-                                val delta = ((panvk.averageFps - system.averageFps).toDouble() / system.averageFps.toDouble()) * 100.0
-                                val deltaText = String.format(Locale.US, "%.1f", delta)
-                                Surface(color = G57Bg, shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
-                                    Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        AppText(system.gpu + " • " + system.game, color = G57Text, fontWeight = FontWeight.Bold)
-                                        AppText("System: " + system.averageFps + " FPS | PanVK: " + panvk.averageFps + " FPS", color = G57Text)
-                                        AppText("PanVK average FPS difference in this pair: " + (if (delta > 0) "+" else "") + deltaText + "%", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
-                                        AppText("Graphics: System = " + system.graphicsResult + "; PanVK = " + panvk.graphicsResult + ". This is not a universal ranking.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-                            }
-                            records.take(12).forEach { record ->
-                                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            AppText(record.gpu + " • " + record.game, color = G57Text, fontWeight = FontWeight.SemiBold)
-                                            AppText(record.driver + " • Avg " + record.averageFps + " FPS • " + record.graphicsResult, color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                            if (record.notes.isNotBlank()) AppText(record.notes, color = G57Muted, style = MaterialTheme.typography.bodySmall)
-                                        }
-                                        IconButton(onClick = {
-                                            records = records.filterNot { it.testedAt == record.testedAt && it.gpu == record.gpu && it.game == record.game && it.driver == record.driver }
-                                            saveDriverTestRecords(context, records)
-                                        }) { Icon(Icons.Default.Close, contentDescription = "Remove test", tint = G57Muted) }
-                                    }
-                                    Divider(color = G57Border)
-                                }
-                            }
-                        }
-                    }
-
                     AppText("⚠️ DRIVER SUPPORT IS EXPERIMENTAL", color = G57Cyan, fontWeight = FontWeight.Bold)
                     AppText(
                         "Community Android drivers are independent forks and can differ from upstream Mesa. Validation on one GPU variant, core count, kernel and game does not prove compatibility elsewhere. Read the source project's limitations before installing.",
@@ -1580,22 +1748,247 @@ private fun DriverDevelopersScreen(vm: G57ViewModel) {
         )
     }
 
-    if (showClearHistory) {
-        AlertDialog(
-            onDismissRequest = { showClearHistory = false },
-            title = { AppText("Clear saved test history?", color = G57Text, fontWeight = FontWeight.Bold) },
-            text = { AppText("This deletes only locally saved driver test results. It does not delete issue reports or cloud files.", color = G57Text) },
-            confirmButton = {
-                TextButton(onClick = {
-                    records = emptyList()
-                    saveDriverTestRecords(context, records)
-                    showClearHistory = false
-                    feedbackMessage = "Test history cleared."
-                }) { AppText("CLEAR HISTORY", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { showClearHistory = false }) { AppText("CANCEL") } }
-        )
+
+}
+
+@Composable
+private fun DriverPerformanceScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var selectedGpu by remember { mutableStateOf("G57") }
+    var selectedDriver by remember { mutableStateOf("System Driver") }
+    var gameName by remember { mutableStateOf("") }
+    var averageFps by remember { mutableStateOf("") }
+    var minimumFps by remember { mutableStateOf("") }
+    var graphicsResult by remember { mutableStateOf("Clean") }
+    var notes by remember { mutableStateOf("") }
+    var records by remember { mutableStateOf(loadDriverTestRecords(context)) }
+    var showClearHistory by remember { mutableStateOf(false) }
+    var feedbackMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(Modifier.fillMaxSize()) {
+        BrandHeader("Performance") { onBack() }
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            AppText("DRIVER PERFORMANCE TEST LAB", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
+            AppText(
+                "Use this page to record a real test you ran in Winlator. Choose the GPU and driver, run the same game scene with matching settings, then enter the FPS and graphics result. GMailGPU does not measure FPS automatically.",
+                color = G57Text
+            )
+            AppText(
+                "For a fair comparison: warm up the game, keep resolution and settings unchanged, close background apps, repeat each driver three times, and note device temperature or stutter. Results are saved only on this phone unless you share them. They are not universal rankings.",
+                color = G57Muted,
+                style = MaterialTheme.typography.bodySmall
+            )
+                        Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = G57Card),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        AppText("🧪 DRIVER TEST LAB", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleLarge)
+                                        AppText(
+                                            "Record tests from your own device. Results stay locally on this phone unless you share them.",
+                                            color = G57Muted,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        AppText("GPU", color = G57Text, fontWeight = FontWeight.Bold)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+                                            listOf("G52", "G57", "G615", "G720").forEach { gpu ->
+                                                FilterChip(
+                                                    selected = selectedGpu == gpu,
+                                                    onClick = { selectedGpu = gpu },
+                                                    label = { AppText(gpu) },
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                        AppText("Driver tested", color = G57Text, fontWeight = FontWeight.Bold)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            listOf("System Driver", "PanVK").forEach { driver ->
+                                                FilterChip(
+                                                    selected = selectedDriver == driver,
+                                                    onClick = { selectedDriver = driver },
+                                                    label = { AppText(driver) },
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                        OutlinedTextField(
+                                            value = gameName,
+                                            onValueChange = { gameName = it.take(100) },
+                                            label = { AppText("Game / test scene") },
+                                            placeholder = { AppText("e.g. GTA V — same benchmark scene") },
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            OutlinedTextField(
+                                                value = averageFps,
+                                                onValueChange = { averageFps = it.filter(Char::isDigit).take(4) },
+                                                label = { AppText("Average FPS *") },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                singleLine = true,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            OutlinedTextField(
+                                                value = minimumFps,
+                                                onValueChange = { minimumFps = it.filter(Char::isDigit).take(4) },
+                                                label = { AppText("Minimum FPS") },
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                singleLine = true,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                        AppText("Visual / stability result", color = G57Text, fontWeight = FontWeight.Bold)
+                                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                                            listOf("Clean", "Visual bugs", "Crash / freeze", "Too slow").forEach { result ->
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    RadioButton(selected = graphicsResult == result, onClick = { graphicsResult = result })
+                                                    AppText(result, color = G57Text)
+                                                }
+                                            }
+                                        }
+                                        OutlinedTextField(
+                                            value = notes,
+                                            onValueChange = { notes = it.take(800) },
+                                            label = { AppText("Notes (optional)") },
+                                            placeholder = { AppText("Resolution, DXVK, Wine, stutter, temperature…") },
+                                            minLines = 2,
+                                            maxLines = 4,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                        Button(
+                                            onClick = {
+                                                val avg = averageFps.toIntOrNull()
+                                                val min = minimumFps.toIntOrNull() ?: 0
+                                                if (gameName.isBlank() || avg == null || avg <= 0 || min < 0 || (min > 0 && min > avg)) {
+                                                    feedbackMessage = "Enter a game name and valid FPS values. Minimum FPS cannot exceed average FPS."
+                                                } else {
+                                                    val entry = DriverTestRecord(
+                                                        selectedGpu,
+                                                        gameName.trim(),
+                                                        selectedDriver,
+                                                        avg,
+                                                        min,
+                                                        graphicsResult,
+                                                        notes.trim(),
+                                                        java.time.Instant.now().toString()
+                                                    )
+                                                    records = (listOf(entry) + records).take(100)
+                                                    saveDriverTestRecords(context, records)
+                                                    averageFps = ""
+                                                    minimumFps = ""
+                                                    notes = ""
+                                                    feedbackMessage = "Test saved on this device."
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(Icons.Default.Save, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            AppText("SAVE TEST RESULT")
+                                        }
+                                        AppText(
+                                            "For fairer results, warm up the game, use the same scene/settings, close background apps and repeat each test 3 times. Different devices are not directly comparable.",
+                                            color = G57Muted,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                        feedbackMessage?.let { AppText(it, color = if (it.startsWith("Test saved")) G57Cyan else MaterialTheme.colorScheme.error) }
+                                    }
+                                }
+            
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = G57Card),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, G57Border),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                AppText("📊 MY TEST HISTORY", color = G57Cyan, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+                                                AppText(records.size.toString() + " saved result(s) • stored only on this device", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    runCatching {
+                                                        val share = Intent(Intent.ACTION_SEND).apply {
+                                                            type = "text/plain"
+                                                            putExtra(Intent.EXTRA_SUBJECT, "GMailGPU Driver Test Results")
+                                                            putExtra(Intent.EXTRA_TEXT, exportDriverTestRecords(records))
+                                                        }
+                                                        context.startActivity(Intent.createChooser(share, "Share test results"))
+                                                    }.onFailure { feedbackMessage = "Could not open the share menu." }
+                                                },
+                                                enabled = records.isNotEmpty()
+                                            ) { Icon(Icons.Default.Share, contentDescription = "Share results", tint = G57Cyan) }
+                                            IconButton(onClick = { showClearHistory = true }, enabled = records.isNotEmpty()) {
+                                                Icon(Icons.Default.DeleteOutline, contentDescription = "Clear history", tint = G57Muted)
+                                            }
+                                        }
+                                        val groups = records.groupBy { it.gpu + "|" + it.game.trim().lowercase(Locale.ROOT) }
+                                        val pairs = groups.values.mapNotNull { group ->
+                                            val system = group.firstOrNull { it.driver == "System Driver" }
+                                            val panvk = group.firstOrNull { it.driver == "PanVK" }
+                                            if (system != null && panvk != null) system to panvk else null
+                                        }
+                                        if (pairs.isEmpty() && records.isNotEmpty()) {
+                                            AppText("Save both drivers for the same GPU and game to see a side-by-side comparison here.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        pairs.take(5).forEach { pair ->
+                                            val system = pair.first
+                                            val panvk = pair.second
+                                            val delta = ((panvk.averageFps - system.averageFps).toDouble() / system.averageFps.toDouble()) * 100.0
+                                            val deltaText = String.format(Locale.US, "%.1f", delta)
+                                            Surface(color = G57Bg, shape = RoundedCornerShape(12.dp), border = androidx.compose.foundation.BorderStroke(1.dp, G57Border), modifier = Modifier.fillMaxWidth()) {
+                                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    AppText(system.gpu + " • " + system.game, color = G57Text, fontWeight = FontWeight.Bold)
+                                                    AppText("System: " + system.averageFps + " FPS | PanVK: " + panvk.averageFps + " FPS", color = G57Text)
+                                                    AppText("PanVK average FPS difference in this pair: " + (if (delta > 0) "+" else "") + deltaText + "%", color = G57Cyan, style = MaterialTheme.typography.bodySmall)
+                                                    AppText("Graphics: System = " + system.graphicsResult + "; PanVK = " + panvk.graphicsResult + ". This is not a universal ranking.", color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                                }
+                                            }
+                                        }
+                                        records.take(12).forEach { record ->
+                                            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                        AppText(record.gpu + " • " + record.game, color = G57Text, fontWeight = FontWeight.SemiBold)
+                                                        AppText(record.driver + " • Avg " + record.averageFps + " FPS • " + record.graphicsResult, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                                        if (record.notes.isNotBlank()) AppText(record.notes, color = G57Muted, style = MaterialTheme.typography.bodySmall)
+                                                    }
+                                                    IconButton(onClick = {
+                                                        records = records.filterNot { it.testedAt == record.testedAt && it.gpu == record.gpu && it.game == record.game && it.driver == record.driver }
+                                                        saveDriverTestRecords(context, records)
+                                                    }) { Icon(Icons.Default.Close, contentDescription = "Remove test", tint = G57Muted) }
+                                                }
+                                                Divider(color = G57Border)
+                                            }
+                                        }
+                                    }
+                                }
+        }
     }
+
+    if (showClearHistory) {
+            AlertDialog(
+                onDismissRequest = { showClearHistory = false },
+                title = { AppText("Clear saved test history?", color = G57Text, fontWeight = FontWeight.Bold) },
+                text = { AppText("This deletes only locally saved driver test results. It does not delete issue reports or cloud files.", color = G57Text) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        records = emptyList()
+                        saveDriverTestRecords(context, records)
+                        showClearHistory = false
+                        feedbackMessage = "Test history cleared."
+                    }) { AppText("CLEAR HISTORY", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = { TextButton(onClick = { showClearHistory = false }) { AppText("CANCEL") } }
+            )
+        }
 }
 
 @Composable
@@ -2057,7 +2450,23 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
             val counterpartPresence = counterpartCandidates.firstOrNull { it.isFreshlyOnline() }
                 ?: counterpartCandidates.maxByOrNull { it.lastSeenAt.orEmpty() }
             val counterpartOnline = counterpartPresence?.isFreshlyOnline() == true
-            val counterpartName = if (admin) "User" else "Developer"
+            val counterpartProfile = if (admin) {
+                ui.userProfiles.firstOrNull { it.id == issue.userId }
+            } else {
+                ui.chatMessages.asReversed().firstNotNullOfOrNull { message ->
+                    if (message.senderId != ui.profile?.id) {
+                        ui.userProfiles.firstOrNull {
+                            it.id == message.senderId && it.role.equals("admin", ignoreCase = true)
+                        }
+                    } else null
+                } ?: ui.userProfiles.firstOrNull { it.role.equals("admin", ignoreCase = true) }
+            }
+            val currentParticipantName = ui.profile?.username ?: if (admin) "Developer" else "User"
+            val counterpartName = if (admin) {
+                counterpartProfile?.username ?: issue.userUsername ?: "User"
+            } else {
+                counterpartProfile?.username ?: "Developer"
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -2066,14 +2475,16 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(10.dp),
-                        shape = RoundedCornerShape(50),
-                        color = if (counterpartOnline) Color(0xFF3DDC84) else G57Muted
-                    ) { }
-                    Column(Modifier.weight(1f)) {
+                    ProfileAvatar(ui.profile?.avatarUrl, currentParticipantName, 44.dp)
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = "Chat participants",
+                        tint = G57Muted
+                    )
+                    ProfileAvatar(counterpartProfile?.avatarUrl, counterpartName, 44.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         AppText(
                             if (counterpartOnline) "$counterpartName online" else "$counterpartName offline",
                             fontWeight = FontWeight.SemiBold
@@ -2162,13 +2573,16 @@ private fun IssueDetails(issue: Issue, ui: UiState, vm: G57ViewModel, admin: Boo
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(9.dp)
                             ) {
+                                val senderProfile = if (isMine) ui.profile else ui.userProfiles.firstOrNull { it.id == message.senderId }
+                                ProfileAvatar(senderProfile?.avatarUrl, senderProfile?.username ?: if (admin) "User" else "Developer", 34.dp)
                                 AppText(
                                     when {
                                         isMine -> "You"
-                                        admin -> issue.userUsername ?: "User"
-                                        else -> "Developer"
+                                        admin -> senderProfile?.username ?: issue.userUsername ?: "User"
+                                        else -> senderProfile?.username ?: "Developer"
                                     },
                                     color = if (isMine) G57Cyan else G57Primary,
                                     fontWeight = FontWeight.Bold
