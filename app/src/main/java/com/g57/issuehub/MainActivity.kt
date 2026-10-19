@@ -808,6 +808,15 @@ private fun AdminHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                         }
                     }
                     OutlinedButton(
+                        onClick = vm::openGameCompatibility,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 10.dp)
+                    ) {
+                        Icon(Icons.Default.SportsEsports, null)
+                        Spacer(Modifier.width(6.dp))
+                        AppText("GAME COMPATIBILITY • COMMUNITY TESTS", maxLines = 1)
+                    }
+                    OutlinedButton(
                         onClick = { vm.loadIssues(true) },
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(vertical = 10.dp)
