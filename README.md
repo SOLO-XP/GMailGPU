@@ -23,7 +23,7 @@
 
 GMailGPU is an Android community app for people testing games and graphics drivers on **Mali GPUs**, including users of **Winlator, GameHub, and similar gaming environments**.
 
-> 🚧 **Release status:** the 0.5-beta code is prepared in [PR #7](https://github.com/SOLO-XP/GMailGPU/pull/7), but that pull request currently has merge conflicts and is not merged into `main`. The latest public APK may therefore still be an older version. The 0.5-beta feature list below describes the candidate, not a newly published release.
+> 🚧 **Release status:** the 0.5-beta application files have now been synchronized into `main`. GitHub Actions is rebuilding and checking the APK; the public download remains the previously published build until this run passes and a new release is published.
 
 Use it to discover community game reports, share your own test results, discuss issues, and find driver projects for your GPU. Results are community-submitted, so a game marked as untested is **not automatically incompatible**.
 
