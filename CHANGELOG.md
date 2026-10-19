@@ -2,7 +2,7 @@
 
 ## 🚀 0.5-beta — candidate update (not yet merged)
 
-> 🚧 The 0.5-beta implementation and verified CI artifact are on [PR #7](https://github.com/SOLO-XP/GMailGPU/pull/7). The PR currently has merge conflicts and is not merged into `main`; this is a development candidate, not a newly published public release.
+> 🚧 The 0.5-beta implementation is now synchronized into `main`. A fresh GitHub Actions build and APK verification are in progress. The public release remains unchanged until the build succeeds and a new release is published.
 
 ### 💬 Chat and account improvements
 - Added profile photo selection in Settings and avatars beside chat participants/messages, with an initial-based fallback when a photo is missing or fails to load.
@@ -22,9 +22,9 @@
 
 ### 🧪 Build metadata and verification
 - Candidate package version: 0.5-beta, version code 20.
-- CI run recorded in PR #7 passed Android build, APK integrity, version metadata, signature checks, and artifact upload.
+- The original PR #7 CI run passed Android build, APK integrity, version metadata, signature checks, and artifact upload; a fresh build is running against the synchronized `main` branch.
 - CI used a temporary debug signing key because stable signing secrets are not configured; Android may require uninstalling an older differently signed APK before installing this candidate.
-- Do not treat the candidate as the current public release until the PR is merged and a release is published.
+- Do not treat the candidate as the current public release until the current `main` build passes and a release is published.
 
 ## 🔔 0.3.4 Beta — Chat Alerts & Live Presence (intermediate milestone)
 
