@@ -342,7 +342,6 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
     fun submit(forceDuplicate: Boolean = false) {
         if (userId.isBlank()) { error = "Sign in before submitting a community result."; return }
         if (game.isBlank() || notes.isBlank()) { error = "Game name and test notes are required."; return }
-        if (gameCover == null) { error = "Choose a square game cover image from your device before submitting."; return }
         if (evidence.isEmpty()) { error = "Attach at least one screenshot or video as evidence."; return }
         val parsedAvg = avgFps.toDoubleOrNull()
         val parsedMin = minFps.toDoubleOrNull()
@@ -376,19 +375,20 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             val uploadedPathsToCleanup = mutableListOf<String>()
             var uploadedCoverPath: String? = null
             runCatching {
-                val coverUri = gameCover ?: throw IllegalStateException("A game cover image is required.")
-                val coverMime = context.contentResolver.getType(coverUri).orEmpty()
-                require(coverMime in listOf("image/jpeg", "image/png", "image/webp", "image/gif")) { "Game cover must be JPG, PNG, WEBP, or GIF." }
-                val coverBytes = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(coverUri)?.use { it.readBytes() }
-                        ?: throw IllegalStateException("Could not read the selected game cover.")
+                gameCover?.let { coverUri ->
+                    val coverMime = context.contentResolver.getType(coverUri).orEmpty()
+                    require(coverMime in listOf("image/jpeg", "image/png", "image/webp", "image/gif")) { "Game cover must be JPG, PNG, WEBP, or GIF." }
+                    val coverBytes = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(coverUri)?.use { it.readBytes() }
+                            ?: throw IllegalStateException("Could not read the selected game cover.")
+                    }
+                    require(coverBytes.size <= 20L * 1024L * 1024L) { "Game cover must be 20 MB or smaller." }
+                    val coverExtension = when (coverMime) { "image/png" -> "png"; "image/webp" -> "webp"; "image/gif" -> "gif"; else -> "jpg" }
+                    val coverPath = "$userId/$id/game_cover.$coverExtension"
+                    client.storage.from("game-evidence").upload(coverPath, coverBytes) { upsert = false }
+                    uploadedCoverPath = coverPath
+                    uploadedPathsToCleanup += coverPath
                 }
-                require(coverBytes.size <= 20L * 1024L * 1024L) { "Game cover must be 20 MB or smaller." }
-                val coverExtension = when (coverMime) { "image/png" -> "png"; "image/webp" -> "webp"; "image/gif" -> "gif"; else -> "jpg" }
-                val coverPath = "$userId/$id/game_cover.$coverExtension"
-                client.storage.from("game-evidence").upload(coverPath, coverBytes) { upsert = false }
-                uploadedCoverPath = coverPath
-                uploadedPathsToCleanup += coverPath
                 evidence.forEachIndexed { index, uri ->
                     val mime = context.contentResolver.getType(uri).orEmpty()
                     require(mime.startsWith("image/") || mime.startsWith("video/")) { "Only image and video evidence is supported." }
@@ -459,6 +459,12 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             }
             IconButton(onClick = { refresh() }, enabled = !loading) { Icon(Icons.Default.Refresh, contentDescription = "Refresh") }
         }
+        AppText(
+            "Browse real community tests or share your own Winlator/GameHub result. Enter your device, GPU, driver and settings, then attach at least one screenshot or gameplay clip so others can learn from your experience.",
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { showForm = !showForm }, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); AppText(if (showForm) "HIDE FORM" else "ADD GAME RESULT")
@@ -470,8 +476,8 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 AppText("1 • Game and device", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 OutlinedTextField(game, { game = it }, label = { AppText("Game name *") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                AppText("Game cover art *", fontWeight = FontWeight.SemiBold)
-                AppText("Choose the official cover or a square game image from your device. It will appear as a square thumbnail in search.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AppText("Game cover art (optional)", fontWeight = FontWeight.SemiBold)
+                AppText("Optional: choose a square cover image to make the game easier to recognize. You can submit your test without one.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (gameCover != null) {
                         AsyncImage(model = gameCover, contentDescription = "Selected game cover", contentScale = ContentScale.Crop, modifier = Modifier.size(104.dp).clip(RoundedCornerShape(14.dp)))
@@ -596,7 +602,22 @@ internal fun GameCompatibilityScreen(onBack: () -> Unit) {
                     }
                     if (gameGroups.isEmpty() && !loading) {
                         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
-                            AppText("No matching games yet. Add a result with a cover image and gameplay evidence to start the library.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(18.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth().padding(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                shape = RoundedCornerShape(18.dp)
+                            ) {
+                                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.SportsEsports, contentDescription = null, modifier = Modifier.size(42.dp), tint = MaterialTheme.colorScheme.primary)
+                                    AppText("No community tests yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    AppText("Be the first to share a game result. Add the game, your GPU/driver and emulator settings, and at least one screenshot or gameplay clip. Your report will be visible to other users as a community result.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Button(onClick = { showForm = true }, modifier = Modifier.fillMaxWidth()) {
+                                        Icon(Icons.Default.Add, null)
+                                        Spacer(Modifier.width(6.dp))
+                                        AppText("SHARE THE FIRST TEST")
+                                    }
+                                }
+                            }
                         }
                     }
                     gridItems(gameGroups, key = { it.first().gameName.lowercase(Locale.ROOT) }) { gameReports ->
