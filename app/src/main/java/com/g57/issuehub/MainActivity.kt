@@ -404,14 +404,14 @@ fun G57App(
                             label = { AppText("Game Compatibility Library") },
                             selected = ui.screen == ScreenState.GameCompatibility,
                             icon = { Icon(Icons.Default.SportsEsports, contentDescription = null) },
-                            onClick = { scope.launch { drawerState.close() }; vm.openGameCompatibility() },
+                            onClick = { scope.launch { drawerState.close(); vm.openGameCompatibility() } },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
                             label = { AppText("Community Game Lab") },
                             selected = ui.screen == ScreenState.GameLab,
                             icon = { Icon(Icons.Default.Explore, contentDescription = null) },
-                            onClick = { scope.launch { drawerState.close() }; vm.openGameLab() },
+                            onClick = { scope.launch { drawerState.close(); vm.openGameLab() } },
                             modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
                         )
                         NavigationDrawerItem(
@@ -725,6 +725,16 @@ private fun UserHome(ui: UiState, vm: G57ViewModel, onMenu: () -> Unit) {
                             Spacer(Modifier.width(6.dp))
                             AppText("REFRESH")
                         }
+                    }
+                    OutlinedButton(
+                        onClick = vm::openGameCompatibility,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(vertical = 11.dp)
+                    ) {
+                        Icon(Icons.Default.SportsEsports, null)
+                        Spacer(Modifier.width(8.dp))
+                        AppText("GAME COMPATIBILITY • SHARE YOUR TEST", fontWeight = FontWeight.Bold)
                     }
                     Row(
                         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
