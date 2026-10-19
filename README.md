@@ -21,15 +21,14 @@
 
 ## 🎬 Watch GMailGPU in Action
 
-### 📘 Tutorial
+Explore the app with these two video demos:
 
-<video src="https://github.com/SOLO-XP/GMailGPU/raw/refs/heads/main/Tutorial.mp4" controls preload="metadata" width="100%">Your browser does not support embedded video. [Watch Tutorial.mp4](https://github.com/SOLO-XP/GMailGPU/blob/main/Tutorial.mp4).</video>
+| Video | What you'll see |
+|---|---|
+| 📘 **[▶ Watch the Tutorial](https://github.com/SOLO-XP/GMailGPU/blob/main/Tutorial.mp4)** | A walkthrough of GMailGPU |
+| 🚀 **[▶ Watch the 0.5 Beta Update](https://github.com/SOLO-XP/GMailGPU/blob/main/New-Update-beta-0.5.mp4)** | A preview of the 0.5-beta update |
 
-### 🚀 What's New in 0.5 Beta
-
-<video src="https://github.com/SOLO-XP/GMailGPU/raw/refs/heads/main/New-Update-beta-0.5.mp4" controls preload="metadata" width="100%">Your browser does not support embedded video. [Watch New-Update-beta-0.5.mp4](https://github.com/SOLO-XP/GMailGPU/blob/main/New-Update-beta-0.5.mp4).</video>
-
-> If the embedded players are not displayed by your GitHub client, use the video links above to open each file directly.
+> **Note:** GitHub does not embed MP4 files stored in the repository as inline README players. These links open the video file on GitHub. For inline playback, the videos must be uploaded through GitHub's Markdown attachment uploader and their generated attachment URLs inserted here.
 
 ---
 
