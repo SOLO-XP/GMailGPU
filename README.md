@@ -19,17 +19,6 @@
 
 ---
 
-## 🎬 Watch GMailGPU in Action
-
-**Watch the demos:** Select either video below to open its GitHub preview and play it.
-
-| Video | What you'll see |
-|---|---|
-| 📘 **[▶ Play the Tutorial](https://github.com/SOLO-XP/GMailGPU/blob/main/Tutorial.mp4)** | A walkthrough of GMailGPU |
-| 🚀 **[▶ Play the 0.5 Beta Update](https://github.com/SOLO-XP/GMailGPU/blob/main/New-Update-beta-0.5.mp4)** | A preview of the 0.5-beta update |
-
-> 💡 **Tip:** The videos are linked from the repository so visitors can open and play each one. GitHub may not render repository-hosted MP4 files as inline players directly inside this README; if you want playback embedded on the README itself, GitHub-generated Markdown attachment URLs or a dedicated webpage are needed.
-
 ---
 
 ## 🌟 What is GMailGPU?
