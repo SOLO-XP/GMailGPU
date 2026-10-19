@@ -92,9 +92,32 @@ class G57Repository {
         sb.from("profiles").select(Columns.ALL) { filter { eq("id", userId) } }
             .decodeSingle<Profile>()
 
+    suspend fun uploadProfileAvatar(userId: String, filename: String, mime: String, bytes: ByteArray): Profile {
+        requireSignedInSession()
+        require(userId == sb.auth.currentUserOrNull()?.id) { "You can only change your own profile photo." }
+        require(mime.startsWith("image/")) { "Choose an image file." }
+        require(bytes.size <= 8 * 1024 * 1024) { "Profile photos must be 8 MB or smaller." }
+        val extension = filename.substringAfterLast('.', "jpg").lowercase().take(8)
+        val path = "$userId/avatar_${System.currentTimeMillis()}.$extension"
+        sb.storage.from("profile-avatars").upload(path, bytes) { upsert = true }
+        val url = sb.storage.from("profile-avatars").publicUrl(path)
+        sb.from("profiles").update(buildJsonObject { put("avatar_url", url) }) {
+            filter { eq("id", userId) }
+        }
+        return profile(userId)
+    }
+
     suspend fun allProfiles(): List<Profile> =
         sb.from("profiles").select(Columns.ALL) { order(column = "created_at", order = Order.ASCENDING) }
             .decodeList()
+
+    // Fetch only developer profiles needed for the issue-chat participant header.
+    // RLS still decides which profiles the signed-in account is permitted to see.
+    suspend fun adminProfiles(): List<Profile> =
+        sb.from("profiles").select(Columns.ALL) {
+            filter { eq("role", "admin") }
+            order(column = "created_at", order = Order.ASCENDING)
+        }.decodeList()
 
     suspend fun myIssues(): List<Issue> =
         sb.from("issues").select(Columns.ALL) { order(column = "created_at", order = Order.DESCENDING) }
