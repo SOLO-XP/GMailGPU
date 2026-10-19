@@ -19,6 +19,20 @@
 
 ---
 
+## 🎬 Watch GMailGPU in Action
+
+### 📘 Tutorial
+
+<video src="https://github.com/SOLO-XP/GMailGPU/raw/refs/heads/main/Tutorial.mp4" controls preload="metadata" width="100%">Your browser does not support embedded video. [Watch Tutorial.mp4](https://github.com/SOLO-XP/GMailGPU/blob/main/Tutorial.mp4).</video>
+
+### 🚀 What's New in 0.5 Beta
+
+<video src="https://github.com/SOLO-XP/GMailGPU/raw/refs/heads/main/New-Update-beta-0.5.mp4" controls preload="metadata" width="100%">Your browser does not support embedded video. [Watch New-Update-beta-0.5.mp4](https://github.com/SOLO-XP/GMailGPU/blob/main/New-Update-beta-0.5.mp4).</video>
+
+> If the embedded players are not displayed by your GitHub client, use the video links above to open each file directly.
+
+---
+
 ## 🌟 What is GMailGPU?
 
 GMailGPU is an Android community app for people testing games and graphics drivers on **Mali GPUs**, including users of **Winlator, GameHub, and similar gaming environments**.
