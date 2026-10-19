@@ -31,8 +31,10 @@ sealed interface ScreenState {
     data object AdminSolvedUsers : ScreenState
     data object AdminUserManagement : ScreenState
     data object DriverDevelopers : ScreenState
+    data object Performance : ScreenState
     data object GameCompatibility : ScreenState
     data object GameLab : ScreenState
+    data object WinlatorTestTools : ScreenState
     data object Help : ScreenState
     data object Settings : ScreenState
     data class AdminIssue(val issue: Issue) : ScreenState
@@ -60,6 +62,16 @@ data class UiState(
     val includeDeviceDiagnostics: Boolean = true,
     val collectAppLogsEnabled: Boolean = false,
     val redactSensitiveLogs: Boolean = true,
+    val defaultGame: String = "",
+    val defaultProblemType: String = "Crash",
+    val defaultDriver: String = "Mali 26.2",
+    val defaultEmulator: String = "Winlator",
+    val defaultEmulatorVersion: String = "",
+    val defaultDxvk: String = "",
+    val defaultWine: String = "",
+    val defaultProton: String = "",
+    val defaultVkd3d: String = "",
+    val defaultBox64: String = "",
     val uploadProgress: String? = null,
     val attachmentPreviewName: String? = null,
     val attachmentPreviewText: String? = null,
@@ -121,6 +133,16 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
             includeDeviceDiagnostics = prefs.getBoolean("include_device_diagnostics", true),
             collectAppLogsEnabled = prefs.getBoolean("collect_app_logs", false),
             redactSensitiveLogs = prefs.getBoolean("redact_sensitive_logs", true),
+            defaultGame = prefs.getString("default_issue_game", "") ?: "",
+            defaultProblemType = prefs.getString("default_issue_problem_type", "Crash") ?: "Crash",
+            defaultDriver = prefs.getString("default_issue_driver", "Mali 26.2") ?: "Mali 26.2",
+            defaultEmulator = prefs.getString("default_issue_emulator", "Winlator") ?: "Winlator",
+            defaultEmulatorVersion = prefs.getString("default_issue_emulator_version", "") ?: "",
+            defaultDxvk = prefs.getString("default_issue_dxvk", "") ?: "",
+            defaultWine = prefs.getString("default_issue_wine", "") ?: "",
+            defaultProton = prefs.getString("default_issue_proton", "") ?: "",
+            defaultVkd3d = prefs.getString("default_issue_vkd3d", "") ?: "",
+            defaultBox64 = prefs.getString("default_issue_box64", "") ?: "",
             gpu = snapshot.gpu,
             soc = snapshot.soc
         )
@@ -175,6 +197,63 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
     fun setProblemType(v: String) = update { copy(problemType = v) }
+
+    fun setIssueDefault(field: String, value: String) {
+        val keys = mapOf(
+            "game" to "default_issue_game",
+            "problemType" to "default_issue_problem_type",
+            "driver" to "default_issue_driver",
+            "emulator" to "default_issue_emulator",
+            "emulatorVersion" to "default_issue_emulator_version",
+            "dxvk" to "default_issue_dxvk",
+            "wine" to "default_issue_wine",
+            "proton" to "default_issue_proton",
+            "vkd3d" to "default_issue_vkd3d",
+            "box64" to "default_issue_box64"
+        )
+        val key = keys[field] ?: return
+        getApplication<Application>().getSharedPreferences("gmailgpu_settings", 0).edit().putString(key, value).apply()
+        update {
+            when (field) {
+                "game" -> copy(defaultGame = value)
+                "problemType" -> copy(defaultProblemType = value)
+                "driver" -> copy(defaultDriver = value)
+                "emulator" -> copy(defaultEmulator = value)
+                "emulatorVersion" -> copy(defaultEmulatorVersion = value)
+                "dxvk" -> copy(defaultDxvk = value)
+                "wine" -> copy(defaultWine = value)
+                "proton" -> copy(defaultProton = value)
+                "vkd3d" -> copy(defaultVkd3d = value)
+                "box64" -> copy(defaultBox64 = value)
+                else -> this
+            }
+        }
+    }
+
+    fun uploadProfileAvatar(uri: Uri) = viewModelScope.launch {
+        val profile = _ui.value.profile ?: return@launch
+        if (!SupabaseProvider.enabled) {
+            update { copy(error = "Profile photo upload requires cloud storage.") }
+            return@launch
+        }
+        update { copy(loading = true, error = null, success = null) }
+        runCatching {
+            val context = getApplication<Application>()
+            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+            require(mime.startsWith("image/")) { "Choose an image file." }
+            val bytes = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: error("Could not read the selected image.")
+            }
+            val ext = mime.substringAfter('/', "jpeg").substringBefore(';').take(8)
+            repo.uploadProfileAvatar(profile.id, "profile-photo.$ext", mime, bytes)
+        }.onSuccess { updatedProfile ->
+            update { copy(loading = false, profile = updatedProfile, success = "Profile photo updated.") }
+            if (updatedProfile.role == "admin") loadIssues(true) else loadUserData(updatedProfile.id)
+        }.onFailure { e ->
+            update { copy(loading = false, error = "Could not upload profile photo. Apply profile_avatar_and_defaults.sql in Supabase first. ${e.message.orEmpty()}") }
+        }
+    }
 
     fun setAppLanguage(language: String) {
         val supported = setOf("system", "en", "ar", "pt-BR")
@@ -270,8 +349,10 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openDriverDevelopers() = update { copy(screen = ScreenState.DriverDevelopers, error = null) }
+    fun openPerformance() = update { copy(screen = ScreenState.Performance, error = null, success = null) }
     fun openGameCompatibility() = update { copy(screen = ScreenState.GameCompatibility, error = null, success = null) }
     fun openGameLab() = update { copy(screen = ScreenState.GameLab, error = null, success = null) }
+    fun openWinlatorTestTools() = update { copy(screen = ScreenState.WinlatorTestTools, error = null, success = null) }
     fun openHelp() = update { copy(screen = ScreenState.Help, error = null) }
     fun openSettings() = update { copy(screen = ScreenState.Settings, error = null) }
     fun goHome() = update {
@@ -368,7 +449,17 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
             screen = ScreenState.CreateIssue,
             error = null,
             success = null,
-            selectedFiles = emptyList()
+            selectedFiles = emptyList(),
+            game = defaultGame,
+            problemType = defaultProblemType,
+            driver = defaultDriver,
+            emulator = defaultEmulator,
+            emulatorVersion = defaultEmulatorVersion,
+            dxvk = defaultDxvk,
+            wine = defaultWine,
+            proton = defaultProton,
+            vkd3d = defaultVkd3d,
+            box64 = defaultBox64
         )
     }
 
@@ -694,6 +785,22 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                 repo.updateTypingState(issueId, typingActive)
             }
             val messages = repo.issueMessages(issueId)
+            // Load the exact participants individually. Decoding every profile in the
+            // database could fail for an unrelated row and silently hide all chat photos.
+            val issueOwnerId = runCatching { repo.issueById(issueId).userId }.getOrNull()
+            val participantIds = (messages.map { it.senderId } + listOfNotNull(readerId, issueOwnerId))
+                .filter { it.isNotBlank() }
+                .distinct()
+            val participantProfiles = participantIds.mapNotNull { id ->
+                runCatching { repo.profile(id) }.getOrNull()
+            }
+            val developerProfiles = if (_ui.value.profile?.role.equals("admin", ignoreCase = true)) {
+                emptyList()
+            } else {
+                runCatching { repo.adminProfiles() }.getOrDefault(emptyList())
+            }
+            val profiles = (participantProfiles + developerProfiles + _ui.value.userProfiles + listOfNotNull(_ui.value.profile))
+                .distinctBy { it.id }
             if (readerId != null) runCatching { repo.markMessagesDelivered(messages, readerId) }
             val refreshed = runCatching { repo.issueMessages(issueId) }.getOrDefault(messages)
             val now = java.time.Instant.now()
@@ -704,13 +811,15 @@ class G57ViewModel(app: Application) : AndroidViewModel(app) {
                         runCatching { java.time.Instant.parse(state.expiresAt).isAfter(now) }.getOrDefault(false)
                 }
             val mode = repo.issueNotificationMode(issueId)
-            Triple(refreshed, typing, mode)
-        }.onSuccess { (messages, typing, mode) ->
+            Triple(refreshed, typing, mode) to profiles
+        }.onSuccess { (chat, profiles) ->
+            val (messages, typing, mode) = chat
             update {
                 copy(
                     chatMessages = messages,
                     chatTypingStates = typing,
-                    chatNotificationMode = mode
+                    chatNotificationMode = mode,
+                    userProfiles = profiles
                 )
             }
         }.onFailure {

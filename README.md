@@ -5,15 +5,15 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.3.4 Beta coming soon" src="https://img.shields.io/badge/0.3.4%20BETA-COMING%20SOON-FF9F1C?style=for-the-badge">
+  <img alt="Version 0.5 Beta candidate; CI verified" src="https://img.shields.io/badge/0.5%20BETA-CANDIDATE%20VERIFIED-16A34A?style=for-the-badge">
 </p>
 
-> 🚧 **COMING SOON — 0.3.4 Beta is not available for download yet.** The next update is being prepared with chat reply alerts, online/offline presence, read receipts, typing indicators, per-issue alert controls, and direct navigation from notifications. Version 0.3.3 Beta remains the latest published version until 0.3.4 Beta is released.
+> ✅ **GMailGPU 0.5 Beta release candidate — CI build and APK verification passed.** The candidate includes chat status and alerts, profile photos, reusable issue templates, Winlator test downloads, and community compatibility improvements. The changes are on PR #7 and are not merged into `main` yet; the public APK remains 0.3.3 Beta until the PR is merged and a public release is published.
 
 <p align="center">
   <img alt="Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
   <img alt="Kotlin" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Current public release 0.3.3 Beta" src="https://img.shields.io/badge/CURRENT%20RELEASE-0.3.3%20Beta-0EA5E9">
+  <img alt="0.5 Beta release candidate" src="https://img.shields.io/badge/RELEASE%20CANDIDATE-0.5--beta-0EA5E9">
   <img alt="Mali GPUs" src="https://img.shields.io/badge/Mali-G52%20%7C%20G57%20%7C%20G615%20%7C%20G720-111827">
   <img alt="Community driven" src="https://img.shields.io/badge/Community-Driven-8B5CF6">
 </p>
@@ -24,9 +24,9 @@
 
 ---
 
-## 🚧 Coming soon: 0.3.4 Beta — complete feature list
+## 🚀 GMailGPU 0.5 Beta — release candidate feature list
 
-**The features listed in this section are planned for 0.3.4 Beta. They are not part of the currently published APK and are not available for download yet.**
+**These features are implemented on the 0.5 Beta candidate branch. CI has verified the candidate APK, but the branch still needs to be merged and the public release published before users can install it as the official release.**
 
 ### Chat, alerts, and presence
 - 🔔 Notifications when a developer replies to a user's issue, with a tap-to-open link to that issue.
@@ -58,12 +58,19 @@
 - 👤 **Tester profiles and contribution badges** — opt in to a public profile and highlight useful, evidence-backed contributions.
 - 📊 **Community statistics and PDF export** — explore test coverage by GPU and share a report summary.
 
+### Profile photos, issue templates, and test resources
+
+- **Profile photos:** users and developers can choose a photo in Settings; the photo appears beside their messages in issue chat.
+- **Reusable issue defaults:** save your usual game, problem type, driver, Winlator version, DXVK, Wine, Proton, VKD3D, and Box64 values in Settings. New issues are prefilled but every field remains editable.
+- **Winlator Test Tools:** RAM Booster v1.2.2 is bundled inside the APK and verified against SHA-256 before the app saves the original EXE to Downloads; AIO Graphics Test downloads directly from its official release, and a searchable in-app component library lets users pick and download Wine/Proton, DXVK, VKD3D-Proton, Box64, and related component versions.
+- **Supabase setup:** run [profile_avatar_and_defaults.sql](profile_avatar_and_defaults.sql) before testing profile photo uploads.
+
 ### Security, permissions, and usability
 - 🛡️ **Issue-update permission improvements** — least-privilege SQL policies and signed-in session checks for issue updates.
 - 🌐 **Expanded language support** — language-aware labels, forms, filters, dialogs, and buttons across the app.
 - 🧪 **Safer report and test submission flow** — keep cover artwork separate from evidence and make test details easier to review.
 
-**Release status:** 0.3.3 Beta remains the current public release. Version 0.3.4 Beta is still **COMING SOON** and will be announced only after the APK and required server setup are verified.
+**Release status:** The 0.5-beta candidate build and APK integrity/signature checks passed in CI. PR #7 is still open, so 0.3.3 Beta remains the public release until the candidate is merged and published. See the [0.5 Beta pull request](https://github.com/SOLO-XP/GMailGPU/pull/7) for current implementation and verification notes.
 
 ---
 
