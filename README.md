@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/GPU-Mali%20Community-ff6b35?style=for-the-badge&logo=android&logoColor=white" alt="Mali Community">
-  <img src="https://img.shields.io/badge/Version-0.5--beta-8b5cf6?style=for-the-badge" alt="Version 0.5-beta">
+  <img src="https://img.shields.io/badge/Version-0.5--beta%20candidate-8b5cf6?style=for-the-badge" alt="Version 0.5-beta candidate">
   <img src="https://img.shields.io/badge/Platform-Android-3ddc84?style=for-the-badge&logo=android&logoColor=white" alt="Android">
 </p>
 
@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SOLO-XP/GMailGPU/releases">⬇️ Download / Releases</a> ·
+  <a href="https://github.com/SOLO-XP/GMailGPU/releases">⬇️ Releases (current public build)</a> ·
   <a href="https://github.com/SOLO-XP/GMailGPU/issues">🐛 Report a bug</a> ·
   <a href="#-getting-started">📘 How to use</a>
 </p>
@@ -23,9 +23,11 @@
 
 GMailGPU is an Android community app for people testing games and graphics drivers on **Mali GPUs**, including users of **Winlator, GameHub, and similar gaming environments**.
 
+> 🚧 **Release status:** the 0.5-beta code is prepared in [PR #7](https://github.com/SOLO-XP/GMailGPU/pull/7), but that pull request currently has merge conflicts and is not merged into `main`. The latest public APK may therefore still be an older version. The 0.5-beta feature list below describes the candidate, not a newly published release.
+
 Use it to discover community game reports, share your own test results, discuss issues, and find driver projects for your GPU. Results are community-submitted, so a game marked as untested is **not automatically incompatible**.
 
-## ✨ What's new in 0.5-beta
+## ✨ What's new in the 0.5-beta candidate
 
 - 🧑‍💻 **Chat avatars** — profile pictures appear in conversations and beside messages, with a fallback when an avatar cannot load.
 - 🎮 **Game Compatibility Library** — browse shared game tests and contribute your own device and driver results.
