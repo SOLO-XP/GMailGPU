@@ -1,6 +1,32 @@
 # Changelog
 
-## 🔔 0.3.4 Beta — Chat Alerts & Live Presence (COMING SOON)
+## 🚀 0.5-beta — candidate update (not yet merged)
+
+> 🚧 The 0.5-beta implementation and verified CI artifact are on [PR #7](https://github.com/SOLO-XP/GMailGPU/pull/7). The PR currently has merge conflicts and is not merged into `main`; this is a development candidate, not a newly published public release.
+
+### 💬 Chat and account improvements
+- Added profile photo selection in Settings and avatars beside chat participants/messages, with an initial-based fallback when a photo is missing or fails to load.
+- Improved chat profile loading so an unrelated profile lookup failure does not hide the participants' photos.
+- Added reusable issue defaults for game, problem type, driver, emulator/version, Wine, DXVK, Proton, VKD3D, and Box64.
+- Includes earlier chat collaboration work: online/last-seen presence, Sent/Delivered/Read states, typing indicators, per-issue notification preferences, important replies, and notification navigation. Background push still depends on Firebase and server-side setup.
+
+### 🧰 Winlator test resources
+- Bundled RAM Booster v1.2.2 in the candidate APK; the app verifies the reconstructed file's expected length and SHA-256 before saving it to Downloads.
+- Added a direct download for AIO Graphics Test (64-bit).
+- Added a searchable/filterable component browser for Wine/Proton, DXVK, VKD3D, Box64, and related components.
+
+### 🎮 Community Game Lab and Compatibility Library
+- Expanded community game compatibility browsing and test submission details.
+- Supports game/device information, driver and emulator versions, FPS/outcome, notes, and screenshot/video evidence.
+- Includes game-cover browsing and language-aware labels from earlier milestones. Community results remain setup-specific, not universal guarantees.
+
+### 🧪 Build metadata and verification
+- Candidate package version: 0.5-beta, version code 20.
+- CI run recorded in PR #7 passed Android build, APK integrity, version metadata, signature checks, and artifact upload.
+- CI used a temporary debug signing key because stable signing secrets are not configured; Android may require uninstalling an older differently signed APK before installing this candidate.
+- Do not treat the candidate as the current public release until the PR is merged and a release is published.
+
+## 🔔 0.3.4 Beta — Chat Alerts & Live Presence (intermediate milestone)
 
 - Added online/offline and last-seen status for the issue owner and developer team, refreshed while the app is foregrounded.
 - Added an idempotent SQL setup file for presence, private device push tokens, and automatic notification rows for each new issue-chat message.
@@ -8,12 +34,10 @@
 - Added optional Firebase Cloud Messaging token registration and an authenticated server function for remote delivery while the app is in the background.
 - Chat automatically refreshes about every five seconds while an issue is open and the app is active.
 - Added distinct Sent, Delivered and Read states; incoming messages are marked delivered when fetched and read when the conversation is opened.
-- Added an expiring `Typing…` indicator for the issue owner/developer team while composing a reply.
+- Added an expiring Typing indicator for the issue owner/developer team while composing a reply.
 - Added per-issue notification modes: all replies, important replies only, or muted. Muting never deletes chat messages.
-- Added a per-message “Mark this reply as important” control; important-only preferences are enforced by the database trigger and push function.
-- The additional `chat_read_receipts_typing_preferences.sql` migration must be applied after the original chat/presence SQL.
-- Push delivery requires the included SQL setup, Firebase client configuration in build secrets, and a deployed server function with the private Firebase service-account secret; secrets are not stored in the repository.
-- Planned package version: 0.3.4-beta (versionCode 19). Not published yet.
+- Added a per-message Mark this reply as important control; important-only preferences are enforced by the database trigger and push function.
+- Required setup: apply chat_notifications_presence.sql and chat_read_receipts_typing_preferences.sql; background push also requires Firebase configuration and a deployed server function with its private service-account secret.
 
 ## 🌐 0.3.3 Beta — UI Translation & Issue Update Hotfix
 
