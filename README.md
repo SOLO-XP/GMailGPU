@@ -1,89 +1,102 @@
-# 🚀 GMailGPU — Mali Gaming Community Hub
+# GMailGPU
 
 <p align="center">
-  <strong>Discover games. Test drivers. Share results. Help the Mali community.</strong>
+  <strong>Mali Gaming Community Hub</strong><br>
+  Discover compatibility. Test drivers. Share results.
 </p>
 
 <p align="center">
-  <img alt="GMailGPU 0.5-beta available" src="https://img.shields.io/badge/Version-0.5--beta-brightgreen?style=for-the-badge">
-  <img alt="Android app" src="https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white">
-  <img alt="Kotlin" src="https://img.shields.io/badge/Made%20with-Kotlin-7F52FF?logo=kotlin&logoColor=white">
-  <img alt="Community project" src="https://img.shields.io/badge/Project-Community%20Driven-8B5CF6">
+  <a href="https://github.com/SOLO-XP/GMailGPU/releases"><img alt="Download GMailGPU 0.5-beta" src="https://img.shields.io/badge/Download-0.5--beta-2563EB?style=flat-square"></a>
+  <img alt="Platform Android" src="https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white">
+  <img alt="Kotlin" src="https://img.shields.io/badge/Language-Kotlin-7F52FF?style=flat-square&logo=kotlin&logoColor=white">
 </p>
 
-**GMailGPU 0.5-beta is available!** GMailGPU is an Android app built for Mali GPU gamers and testers. It helps you explore game compatibility, compare driver results, troubleshoot graphics problems, and share real test experiences from Winlator, GameHub, and similar environments.
+GMailGPU is a community app for Mali GPU gamers and testers using **Winlator, GameHub, and similar environments**. Explore game compatibility reports, investigate graphics issues, compare driver experiences, and help other users with useful test results.
 
-[**⬇️ Get GMailGPU**](https://github.com/SOLO-XP/GMailGPU/releases) · [Report a bug](https://github.com/SOLO-XP/GMailGPU/issues) · [View build history](https://github.com/SOLO-XP/GMailGPU/actions/workflows/build-apk.yml)
-
----
-
-## ✨ What's new in 0.5-beta
-
-### 🖼️ Better chat profile pictures
-- Improved profile-avatar display in conversations and beside chat messages.
-- A fallback is shown when a profile picture is missing or cannot load, so the chat remains readable.
-
-### 🎮 Game Compatibility Library
-- Find community game-compatibility reports and learn how games perform on different Mali devices and driver setups.
-- Share your own testing experience so other users can learn from your results.
-- Use real evidence and setup details to make reports more helpful to the community.
-
-### 🧪 Dedicated Performance page
-- Driver Test Lab tools now have a dedicated **Performance** page instead of being tucked away in Settings.
-- Clearer descriptions help users understand the purpose of the available testing tools.
-
-### 🧰 Gaming and testing utilities
-- Includes Winlator-focused testing tools to support gaming experiments and troubleshooting.
-- Includes the **RAM Booster** utility for supported workflows.
-
-### 🌐 Community Game Lab
-- A central place for community game testing and compatibility information.
-- Helps users discover shared experiences and learn from other testers' configurations.
+<p align="center">
+  <a href="https://github.com/SOLO-XP/GMailGPU/releases"><strong>Download 0.5-beta</strong></a> ·
+  <a href="#whats-new-in-05-beta">What's new</a> ·
+  <a href="https://github.com/SOLO-XP/GMailGPU/issues">Report a problem</a>
+</p>
 
 ---
 
-## 🕹️ Main features
+## What's new in 0.5-beta
 
-| Feature | What you can do |
-| --- | --- |
-| **Game Compatibility Library** | Look up game reports and contribute your own results. |
-| **Community Game Lab** | Explore shared testing experiences and game information. |
-| **Performance / Driver Test Lab** | Find driver-testing utilities in a dedicated section. |
-| **Issue reporting** | Report crashes, visual glitches, rendering problems, and other bugs. |
-| **Developer chat** | Discuss a submitted issue with the developer team. |
-| **Diagnostic reports** | Collect useful device and software details when investigating a problem. |
-| **Log collection** | Gather troubleshooting logs where Android allows access. |
-| **Evidence uploads** | Attach relevant logs, screenshots, and videos to reports. |
-| **Mali driver resources** | Find links to community driver projects for supported Mali GPUs. |
-| **Language and appearance** | Use the available language and theme options. |
+### Chat avatars
+Profile pictures have improved display in conversations and beside messages. If an avatar is missing or fails to load, a fallback keeps the chat readable.
 
-## 📲 How to get started
+### Game Compatibility Library
+Browse community game-testing reports and share your own experience. Device, driver, emulator, settings, and evidence help other users understand how a result was achieved.
 
-1. Download the available build from [GitHub Releases](https://github.com/SOLO-XP/GMailGPU/releases).
-2. Install the APK and open GMailGPU.
-3. Sign in or create a user account.
-4. Browse the **Game Compatibility Library** and **Community Game Lab** to explore community results.
-5. Open **Performance** to find Driver Test Lab tools.
-6. If you discover a problem, submit an issue with clear details and supporting evidence.
+### Performance
+Driver Test Lab tools now have a dedicated **Performance** page instead of being tucked away in Settings. Clearer descriptions help users understand the testing tools.
 
-> **Installation note:** If Android refuses to update your existing installation because the signing key differs, back up anything important and uninstall the previous version before installing 0.5-beta. Uninstalling an app can remove local app data, so proceed carefully.
+### Gaming utilities
+- **Winlator testing tools** to support gaming experiments and troubleshooting.
+- **RAM Booster** utility for supported testing workflows.
+- **Community Game Lab** for exploring shared game tests and compatibility information.
 
-## 🧪 How to submit a useful game test
+## Features
 
-Help other users reproduce your results by including:
+<details>
+<summary><strong>Game testing and compatibility</strong></summary>
+
+- Browse community compatibility reports.
+- Share results from your own device and driver setup.
+- Compare game behavior across different Mali GPUs and environments.
+- Find community driver project links.
+- Remember: no report means **not tested**, not necessarily incompatible.
+
+</details>
+
+<details>
+<summary><strong>Issue reports and developer chat</strong></summary>
+
+- Report crashes, visual glitches, rendering problems, and other bugs.
+- Discuss a specific issue with the developer team.
+- Attach relevant diagnostic logs, screenshots, or videos.
+- Include clear reproduction steps and software versions to make reports easier to investigate.
+
+</details>
+
+<details>
+<summary><strong>Diagnostics and personalization</strong></summary>
+
+- Smart diagnostic information for troubleshooting.
+- Log collection where supported by Android.
+- Language and appearance options.
+- Review files before uploading and avoid sharing private information.
+
+</details>
+
+## Getting started
+
+1. **Download:** get the available APK from [GitHub Releases](https://github.com/SOLO-XP/GMailGPU/releases).
+2. **Install:** open the APK and follow Android's installation prompts.
+3. **Sign in:** log in or create a user account.
+4. **Explore:** visit **Community Game Lab** or **Game Compatibility Library** to find community results.
+5. **Test:** open **Performance** to find the Driver Test Lab tools.
+6. **Contribute:** share a useful test or report a problem with supporting evidence.
+
+> **Installation tip:** If Android blocks an update because the signing key differs, back up any important information before uninstalling the previous version. Uninstalling can erase local app data.
+
+## Share a useful compatibility test
+
+Please include as many details as you know:
 
 - Phone model, Android version, and Mali GPU
 - Game name and game version
 - Driver version and Winlator/GameHub version
-- Relevant Wine, DXVK, VKD3D-Proton, or Box64 versions, if known
-- Resolution, graphics settings, FPS, and any visual defects or crashes
-- A screenshot or video that demonstrates the result
+- Wine, DXVK, VKD3D-Proton, or Box64 versions, if relevant
+- Resolution, graphics settings, FPS, crashes, or visual defects
+- A screenshot or video showing the result
 
-**No report does not mean a game is incompatible.** It means the community has no matching test result available yet. Results depend on the device, driver, game version, and configuration used.
+Test results describe the specific setup used. They do not guarantee the same outcome on every device.
 
-## 🔗 Community driver projects
+## Community driver projects
 
-These are independent projects. Check each repository's instructions and supported-device notes before installing experimental drivers.
+These projects are independently maintained. Read their instructions and supported-device notes before installing experimental drivers.
 
 - **Mali-G57:** [panvk-g99-jm](https://github.com/Noysz/panvk-g99-jm) · [mesa-panvk-g57](https://github.com/mexicanbr0auth/mesa-panvk-g57) · [FristOneRR PanVK](https://github.com/FristOneRR/FristOneRR-Panvk-Driver)
 - **Mali-G52:** [panvk-mali-g52](https://github.com/LukeValen/panvk-mali-g52)
@@ -91,17 +104,17 @@ These are independent projects. Check each repository's instructions and support
 - **Mali-G720:** [panvk-g720-kbase-csf](https://github.com/wonderkast02/panvk-g720-kbase-csf)
 - **Winlator:** [WinlatorMali](https://github.com/GunaCharanTeja/WinlatorMali)
 
-## 🔐 Use the app responsibly
+## Privacy and contributions
 
-- Check diagnostic files before uploading; remove passwords, tokens, and private information.
-- Only upload evidence relevant to your report or test.
-- Beta software and experimental drivers can contain bugs. Follow their installation instructions.
+- Check logs and attachments before uploading; remove passwords, tokens, and personal information.
+- Share only evidence relevant to your report or test.
+- Beta builds and experimental drivers may contain bugs.
 - GMailGPU is an independent community project and is not affiliated with Arm, Mali, Winlator, or GameHub.
 
-## 🤝 Contribute
+Found a bug or have an idea? [Open a GitHub issue](https://github.com/SOLO-XP/GMailGPU/issues).
 
-Have a feature idea or found a bug? [Open an issue on GitHub](https://github.com/SOLO-XP/GMailGPU/issues).
+---
 
 <p align="center">
-  <strong>💚 GMailGPU — Better evidence. Better comparisons. Better Mali gaming.</strong>
+  <sub>GMailGPU · Better evidence. Better comparisons. Better Mali gaming.</sub>
 </p>
